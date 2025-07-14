@@ -1,0 +1,77 @@
+,Name,Code,OperatingMIC,Country,Currency,CountryISO2,CountryISO3
+0,USA Stocks,US,"XNAS, XNYS, OTCM",USA,USD,US,USA
+1,London Exchange,LSE,XLON,UK,GBP,GB,GBR
+2,NEO Exchange,NEO,NEOE,Canada,CAD,CA,CAN
+3,TSX Venture Exchange,V,XTSX,Canada,CAD,CA,CAN
+4,Toronto Exchange,TO,XTSE,Canada,CAD,CA,CAN
+5,Berlin Exchange,BE,XBER,Germany,EUR,DE,DEU
+6,Hamburg Exchange,HM,XHAM,Germany,EUR,DE,DEU
+7,XETRA Stock Exchange,XETRA,XETR,Germany,EUR,DE,DEU
+8,Dusseldorf Exchange,DU,XDUS,Germany,EUR,DE,DEU
+9,Frankfurt Exchange,F,XFRA,Germany,EUR,DE,DEU
+10,Munich Exchange,MU,XMUN,Germany,EUR,DE,DEU
+11,Hanover Exchange,HA,XHAN,Germany,EUR,DE,DEU
+12,Stuttgart Exchange,STU,XSTU,Germany,EUR,DE,DEU
+13,Luxembourg Stock Exchange,LU,XLUX,Luxembourg,EUR,LU,LUX
+14,Vienna Exchange,VI,XWBO,Austria,EUR,AT,AUT
+15,Euronext Paris,PA,XPAR,France,EUR,FR,FRA
+16,Euronext Brussels,BR,XBRU,Belgium,EUR,BE,BEL
+17,SIX Swiss Exchange,SW,XSWX,Switzerland,CHF,CH,CHE
+18,Madrid Exchange,MC,BMEX,Spain,EUR,ES,ESP
+19,Euronext Lisbon,LS,XLIS,Portugal,EUR,PT,PRT
+20,Euronext Amsterdam,AS,XAMS,Netherlands,EUR,NL,NLD
+21,Helsinki Exchange,HE,XHEL,Finland,EUR,FI,FIN
+22,Iceland Exchange,IC,XICE,Iceland,ISK,IS,ISL
+23,Irish Exchange,IR,XDUB,Ireland,EUR,IE,IRL
+24,Oslo Stock Exchange,OL,XOSL,Norway,NOK,NO,NOR
+25,Copenhagen Exchange,CO,XCSE,Denmark,DKK,DK,DNK
+26,Stockholm Exchange,ST,XSTO,Sweden,SEK,SE,SWE
+27,Victoria Falls Stock Exchange,VFEX,VFEX,Zimbabwe,ZWL,ZW,ZWE
+28,Zimbabwe Stock Exchange,XZIM,XZIM,Zimbabwe,ZWL,ZW,ZWE
+29,Lusaka Stock Exchange,LUSE,XLUS,Zambia,ZMW,ZM,ZMB
+30,Uganda Securities Exchange,USE,XUGA,Uganda,UGX,UG,UGA
+31,Dar es Salaam Stock Exchange,DSE,XDAR,Tanzania,TZS,TZ,TZA
+32,Rwanda Stock Exchange,RSE,RSEX,Rwanda,RWF ,RW,RWA
+33,Prague Stock Exchange,PR,XPRA,Czech Republic,CZK,CZ,CZE
+34,Botswana Stock Exchange,XBOT,XBOT,Botswana,BWP,BW,BWA
+35,Nigerian Stock Exchange,XNSA,XNSA,Nigeria,NGN,NG,NGA
+36,Egyptian Exchange,EGX,NILX,Egypt,EGP,EG,EGY
+37,Malawi Stock Exchange,MSE,XMSW,Malawi,MWK,MW,MWI
+38,Ghana Stock Exchange,GSE,XGHA,Ghana,GHS,GH,GHA
+39,Nairobi Securities Exchange,XNAI,XNAI,Kenya,KES,KE,KEN
+40,Casablanca Stock Exchange,BC,XCAS,Morocco,MAD,MA,MAR
+41,Stock Exchange of Mauritius,SEM,XMAU,Mauritius,MUR,MU,MUS
+42,Tel Aviv Stock Exchange,TA,XTAE,Israel,ILS,IL,ISR
+43,Korea Stock Exchange,KO,XKRX,Korea,KRW,KR,KOR
+44,KOSDAQ,KQ,XKOS,Korea,KRW,KR,KOR
+45,Budapest Stock Exchange,BUD,XBUD,Hungary,HUF,HU,HUN
+46,Warsaw Stock Exchange,WAR,XWAR,Poland,PLN,PL,POL
+47,Philippine Stock Exchange,PSE,XPHS,Philippines,PHP,PH,PHL
+48,Chilean Stock Exchange,SN,XSGO,Chile,CLP,CL,CHL
+49,Jakarta Exchange,JK,XIDX,Indonesia,IDR,ID,IDN
+50,Shanghai Stock Exchange,SHG,XSHG,China,CNY,CN,CHN
+51,National Stock Exchange of India,NSE,XNSE,India,INR,IN,IND
+52,Athens Exchange,AT,ASEX,Greece,EUR,GR,GRC
+53,Shenzhen Stock Exchange,SHE,XSHE,China,CNY,CN,CHN
+54,Australian Securities Exchange,AU,XASX,Australia,AUD,AU,AUS
+55,Johannesburg Exchange,JSE,XJSE,South Africa,ZAR,ZA,ZAF
+56,Karachi Stock Exchange,KAR,XKAR,Pakistan,PKR,PK,PAK
+57,Thailand Exchange,BK,XBKK,Thailand,THB,TH,THA
+58,Colombo Stock Exchange,CM,XCOL,Sri Lanka,LKR,LK,LKA
+59,Vietnam Stocks,VN,HSTC,Vietnam,VND,VN,VNM
+60,Kuala Lumpur Exchange,KLSE,XKLS,Malaysia,MYR,MY,MYS
+61,Bucharest Stock Exchange,RO,XBSE,Romania,RON,RO,ROU
+62,Sao Paulo Exchange,SA,BVMF,Brazil,BRL,BR,BRA
+63,Buenos Aires Exchange,BA,XBUE,Argentina,ARS,AR,ARG
+64,Mexican Exchange,MX,XMEX,Mexico,MXN,MX,MEX
+65,London IL,IL,XLON,UK,USD,GB,GBR
+66,Zagreb Stock Exchange,ZSE,XZAG,Croatia,EUR,HR,HRV
+67,Taiwan Stock Exchange,TW,XTAI,Taiwan,TWD,TW,TWN
+68,FOREX,FOREX,CDSL,Unknown,Unknown,,
+69,Taiwan OTC Exchange,TWO,ROCO,Taiwan,TWD,TW,TWN
+70,Bolsa de Valores de Lima,LIM,XLIM,Peru,PEN,PE,PER
+71,Government Bonds,GBOND,,Unknown,Unknown,,
+72,Money Market Virtual Exchange,MONEY,,Unknown,Unknown,,
+73,Europe Fund Virtual Exchange,EUFUND,,Unknown,EUR,,
+74,Istanbul Stock Exchange,IS,XIST,Turkey,TRY,TR,TUR
+75,Cryptocurrencies,CC,CRYP,Unknown,USD,,

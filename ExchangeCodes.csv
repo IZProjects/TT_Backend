@@ -1,0 +1,81 @@
+Name,Code,Country,Currency,Source
+NYSE,US,USA,USD,EODHD
+NASDAQ,US,USA,USD,EODHD
+US OTC,US,USA,USD,EODHD
+London Exchange,LSE,UK,GBP,EODHD
+NEO Exchange,NEO,Canada,CAD,EODHD
+TSX Venture Exchange,V,Canada,CAD,EODHD
+Toronto Exchange,TO,Canada,CAD,EODHD
+Berlin Exchange,BE,Germany,EUR,EODHD
+Hamburg Exchange,HM,Germany,EUR,EODHD
+XETRA Stock Exchange,XETRA,Germany,EUR,EODHD
+Dusseldorf Exchange,DU,Germany,EUR,EODHD
+Frankfurt Exchange,F,Germany,EUR,EODHD
+Munich Exchange,MU,Germany,EUR,EODHD
+Hanover Exchange,HA,Germany,EUR,EODHD
+Stuttgart Exchange,STU,Germany,EUR,EODHD
+Luxembourg Stock Exchange,LU,Luxembourg,EUR,EODHD
+Vienna Exchange,VI,Austria,EUR,EODHD
+Euronext Paris,PA,France,EUR,EODHD
+Euronext Brussels,BR,Belgium,EUR,EODHD
+SIX Swiss Exchange,SW,Switzerland,CHF,EODHD
+Madrid Exchange,MC,Spain,EUR,EODHD
+Euronext Lisbon,LS,Portugal,EUR,EODHD
+Euronext Amsterdam,AS,Netherlands,EUR,EODHD
+Helsinki Exchange,HE,Finland,EUR,EODHD
+Iceland Exchange,IC,Iceland,ISK,EODHD
+Irish Exchange,IR,Ireland,EUR,EODHD
+Oslo Stock Exchange,OL,Norway,NOK,EODHD
+Copenhagen Exchange,CO,Denmark,DKK,EODHD
+Stockholm Exchange,ST,Sweden,SEK,EODHD
+Victoria Falls Stock Exchange,VFEX,Zimbabwe,ZWL,EODHD
+Zimbabwe Stock Exchange,XZIM,Zimbabwe,ZWL,EODHD
+Lusaka Stock Exchange,LUSE,Zambia,ZMW,EODHD
+Uganda Securities Exchange,USE,Uganda,UGX,EODHD
+Dar es Salaam Stock Exchange,DSE,Tanzania,TZS,EODHD
+Rwanda Stock Exchange,RSE,Rwanda,RWF ,EODHD
+Prague Stock Exchange,PR,Czech Republic,CZK,EODHD
+Botswana Stock Exchange,XBOT,Botswana,BWP,EODHD
+Nigerian Stock Exchange,XNSA,Nigeria,NGN,EODHD
+Egyptian Exchange,EGX,Egypt,EGP,EODHD
+Malawi Stock Exchange,MSE,Malawi,MWK,EODHD
+Ghana Stock Exchange,GSE,Ghana,GHS,EODHD
+Nairobi Securities Exchange,XNAI,Kenya,KES,EODHD
+Casablanca Stock Exchange,BC,Morocco,MAD,EODHD
+Stock Exchange of Mauritius,SEM,Mauritius,MUR,EODHD
+Tel Aviv Stock Exchange,TA,Israel,ILS,EODHD
+Korea Stock Exchange,KO,Korea,KRW,EODHD
+KOSDAQ,KQ,Korea,KRW,EODHD
+Budapest Stock Exchange,BUD,Hungary,HUF,EODHD
+Warsaw Stock Exchange,WAR,Poland,PLN,EODHD
+Philippine Stock Exchange,PSE,Philippines,PHP,EODHD
+Chilean Stock Exchange,SN,Chile,CLP,EODHD
+Jakarta Exchange,JK,Indonesia,IDR,EODHD
+Shanghai Stock Exchange,SHG,China,CNY,EODHD
+National Stock Exchange of India,NSE,India,INR,EODHD
+Athens Exchange,AT,Greece,EUR,EODHD
+Shenzhen Stock Exchange,SHE,China,CNY,EODHD
+Australian Securities Exchange,AU,Australia,AUD,EODHD
+Johannesburg Exchange,JSE,South Africa,ZAR,EODHD
+Karachi Stock Exchange,KAR,Pakistan,PKR,EODHD
+Thailand Exchange,BK,Thailand,THB,EODHD
+Colombo Stock Exchange,CM,Sri Lanka,LKR,EODHD
+Vietnam Stocks,VN,Vietnam,VND,EODHD
+Kuala Lumpur Exchange,KLSE,Malaysia,MYR,EODHD
+Bucharest Stock Exchange,RO,Romania,RON,EODHD
+Sao Paulo Exchange,SA,Brazil,BRL,EODHD
+Buenos Aires Exchange,BA,Argentina,ARS,EODHD
+Mexican Exchange,MX,Mexico,MXN,EODHD
+London IL,IL,UK,USD,EODHD
+Zagreb Stock Exchange,ZSE,Croatia,EUR,EODHD
+Taiwan Stock Exchange,TW,Taiwan,TWD,EODHD
+Taiwan OTC Exchange,TWO,Taiwan,TWD,EODHD
+Bolsa de Valores de Lima,LIM,Peru,PEN,EODHD
+Istanbul Stock Exchange,IS,Turkey,TRY,EODHD
+Cryptocurrencies,CC,Unknown,USD,EODHD
+Tokyo Stock Exchange,T,Japan,JYP,yfinance
+Hong Kong Stock Exchange,HK,Hong Kong,HKD,yfinance
+Saudi Exchange,SA,Saudi Arabia,SAR,yfinance
+Moscow Exchange,ME,Russia,RUB,yfinance
+Bombay Stock Exchange,BO,India,INR,yfinance
+ational Stock Exchange of India,NS,India,INR,yfinance
