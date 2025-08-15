@@ -24,17 +24,19 @@ def get_historical_stock_data(ticker, from_date, to_date):
         return f"Error: {response.status_code} - {response.text}"
 
 def get_weekly_data(df):
-  df['date'] = pd.to_datetime(df['date'])
-  df = df.set_index('date', inplace=False)
-  weekly_df = df.resample('W-MON').agg({
-    'open': 'first',
-    'high': 'max',
-    'low': 'min',
-    'close': 'last',
-    'adjusted_close': 'last',
-    'volume': 'sum'
-  }).reset_index()
-  return weekly_df
+    df['date'] = pd.to_datetime(df['date'])
+    df['week_start'] = df['date'] - pd.to_timedelta(df['date'].dt.weekday, unit='d')
+    weekly_df = (
+        df.groupby('week_start').agg({
+            'open': 'first',
+            'high': 'max',
+            'low': 'min',
+            'close': 'last',
+            'adjusted_close': 'last',
+            'volume': 'sum'
+        }).reset_index()
+    )
+    return weekly_df
 
 def get_monthly_data(df):
   df['date'] = pd.to_datetime(df['date'])
@@ -95,5 +97,24 @@ def get_tickers(exchange_code):
   else:
       return f"Error: {response.status_code} - {response.text}"
 
-df = get_exhanges()
-df.to_csv("EODHD_Exchanges.csv")
+#df = get_exhanges()
+#df.to_csv("EODHD_Exchanges.csv")
+
+
+
+"""from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from_date = (datetime.today() - relativedelta(years=3)).strftime('%Y-%m-%d')
+to_date = datetime.today().strftime('%Y-%m-%d')
+df = get_historical_stock_data("SNROF.US", from_date, to_date)
+dfw = get_weekly_data(df)
+with pd.option_context(
+    "display.max_rows", None,
+    "display.max_columns", None,
+    "display.width", None,
+    "display.max_colwidth", None
+):
+    print(df)
+    print("\n-----------------------------------------------------------------------------------------------------\n")
+    print(dfw)
+"""

@@ -53,7 +53,7 @@ for i in range(len(df_companies)):
             {"role": "system", "content": "You have been passed some information of a company and a markdown table of some stock exchange information. Extract the company's keyword, ticker without any exchange information attached, the relevant exchange code for the ticker from the second table and the associated source to use in the second table."},
             {
                 "role": "user",
-                "content": f"The company {company} has the ticker {ticker} in the exhcnage {exchange}. The ticker is not nessecarily in the form that I want. \n Here is the exchange information: {markdown_exchanges}",
+                "content": f"The company {company} has the ticker {ticker} in the exchange {exchange}. The ticker is not nessecarily in the form that I want. \n Here is the exchange information: {markdown_exchanges}",
             },
         ],
         text_format=tickerformat,

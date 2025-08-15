@@ -1,4 +1,4 @@
-Name,Code,Country,Currency,Source
+Name,Usage_Code,Country,Currency,Source
 NYSE,US,USA,USD,EODHD
 NASDAQ,US,USA,USD,EODHD
 US OTC,US,USA,USD,EODHD

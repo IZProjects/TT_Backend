@@ -1,9 +1,21 @@
-import sqlite3
+from supabase_client import supabase
 import pandas as pd
 
+response = (
+    supabase.table("q4")
+    .select("*")
+    .execute()
+)
+data = response.data
+print(data)
+
+response = (
+    supabase.table("tiktok_analytics")
+    .select("*")
+    .execute()
+)
+data = response.data
+print(data)
 
 
-conn = sqlite3.connect('data.db')
-df = pd.read_sql('SELECT * FROM Public_Brands', conn)
-df = df.reset_index(drop=True)
-df.to_csv(r"Public_Brands.csv")
+

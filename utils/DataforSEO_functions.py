@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 import pandas as pd
 import time
+from datetime import datetime, date, timedelta
 # You can download this file from here https://cdn.dataforseo.com/v3/examples/python/python_Client.zip
 
 
@@ -15,7 +16,7 @@ client = RestClient(DataForSEO_login, DataForSEO_API_KEY)
 post_data = dict()
 
 
-def get_trend(keyword, time_range):
+def ss_get_trend(keyword, time_range):
     """
     :param keyword: (str) eg."popmart"
     :param time_range: (str) past_30_days, past_90_days, past_12_months, past_5_years
@@ -37,7 +38,7 @@ def get_trend(keyword, time_range):
         print("error. Code: %d Message: %s" % (response["status_code"], response["status_message"]))
 
 
-def get_volume(keyword_list):
+def ss_get_volume(keyword_list):
     """
     :param keyword_list: (list) eg.["popmart", 'jellycat']
     :return: [{'keyword': 'jellycat', 'search_volume': 340121, 'country_distribution': [{'country_iso_code': 'US', 'search_volume': 115908, 'percentage': 34.07845},...]},...]
@@ -56,7 +57,7 @@ def get_volume(keyword_list):
     else:
         print("error. Code: %d Message: %s" % (response["status_code"], response["status_message"]))
 
-def get_monthly_vol(trend, known_volume):
+def ss_get_monthly_vol(trend, known_volume):
     """
     :param trend: (list) direct from get_trend()
     :param known_volume: (int)
@@ -97,10 +98,9 @@ def get_monthly_vol(trend, known_volume):
 
 # --------------------------------------------------------------------------------------------------------------
 
-
-print('------------------------------------------------------------------------------------------------------')
-
-def get_volume2(keywords):
+date_from = date.today().replace(year=date.today().year - 3)
+date_from = date_from.strftime("%Y-%m-%d")
+def get_volume(keywords):
     # simple way to set a task
     # based on google keyword planner
     """post_data[len(post_data)] = dict(
@@ -110,7 +110,7 @@ def get_volume2(keywords):
         0: {
             "keywords": keywords,
             "search_partners": True,
-            "date_from": "2020-01-01",
+            "date_from": date_from,
         }
     }
     # POST /v3/keywords_data/google_ads/search_volume/live
@@ -118,23 +118,28 @@ def get_volume2(keywords):
     response = client.post("/v3/keywords_data/google_ads/search_volume/live", post_data)
     # you can find the full list of the response codes here https://docs.dataforseo.com/v3/appendix/errors
     if response["status_code"] == 20000:
-        print(response)
-        # do something with result
+        results = response['tasks'][0]['result']
+        formatted_data = []
+        for keyword_data in results:
+            #only append if we have the search vol data
+            if keyword_data['monthly_searches'] != None:
+                keyword = keyword_data['keyword']
+                monthly_entries = keyword_data['monthly_searches']
+
+                # Format each entry as MM/DD/YYYY: Volume
+                formatted_entries = []
+                for entry in monthly_entries:
+                    date_str = datetime(entry['year'], entry['month'], 1).strftime('%m/%d/%Y')
+                    formatted_entries.append(f"{date_str}: {entry['search_volume']}")
+
+                # Join into a single string
+                formatted_string = ', '.join(formatted_entries)
+
+                # Append as dictionary
+                formatted_data.append({keyword: formatted_string})
+            else:
+                pass
+        return formatted_data
     else:
         print("error. Code: %d Message: %s" % (response["status_code"], response["status_message"]))
 
-
-
-# simple way to set a task
-post_data[len(post_data)] = dict(
-    keywords=["popmart"]
-)
-# POST /v3/keywords_data/google_ads/keywords_for_keywords/live
-# the full list of possible parameters is available in documentation
-response = client.post("/v3/keywords_data/google_ads/keywords_for_keywords/live", post_data)
-# you can find the full list of the response codes here https://docs.dataforseo.com/v3/appendix/errors
-if response["status_code"] == 20000:
-    print(response)
-    # do something with result
-else:
-    print("error. Code: %d Message: %s" % (response["status_code"], response["status_message"]))
