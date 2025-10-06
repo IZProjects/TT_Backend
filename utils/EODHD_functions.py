@@ -118,3 +118,9 @@ with pd.option_context(
     print("\n-----------------------------------------------------------------------------------------------------\n")
     print(dfw)
 """
+"""from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from_date = (datetime.today() - relativedelta(years=3)).strftime('%Y-%m-%d')
+to_date = datetime.today().strftime('%Y-%m-%d')
+df = get_historical_stock_data(f"SWY.US", from_date, to_date)
+print(df)"""

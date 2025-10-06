@@ -16,7 +16,7 @@ client = RestClient(DataForSEO_login, DataForSEO_API_KEY)
 post_data = dict()
 
 
-def ss_get_trend(keyword, time_range):
+def get_trend(keyword, time_range):
     """
     :param keyword: (str) eg."popmart"
     :param time_range: (str) past_30_days, past_90_days, past_12_months, past_5_years
@@ -30,9 +30,12 @@ def ss_get_trend(keyword, time_range):
             "keywords": [keyword]
         }
     }
-    response = client.post("/v3/keywords_data/dataforseo_trends/explore/live", post_data)
+    response = client.post("https://api.dataforseo.com/v3/keywords_data/google_trends/explore/live", post_data)
     if response["status_code"] == 20000:
         data = response['tasks'][0]['result'][0]['items'][0]['data']
+        for item in data:
+            if item.get("values") == [None]:
+                item["values"] = [0]
         return data
     else:
         print("error. Code: %d Message: %s" % (response["status_code"], response["status_message"]))
@@ -125,7 +128,7 @@ def get_volume(keywords):
             if keyword_data['monthly_searches'] != None:
                 keyword = keyword_data['keyword']
                 monthly_entries = keyword_data['monthly_searches']
-
+                monthly_entries = sorted(monthly_entries, key=lambda x: (x['year'], x['month']))
                 # Format each entry as MM/DD/YYYY: Volume
                 formatted_entries = []
                 for entry in monthly_entries:
@@ -143,3 +146,73 @@ def get_volume(keywords):
     else:
         print("error. Code: %d Message: %s" % (response["status_code"], response["status_message"]))
 
+
+
+from datetime import datetime, date
+import re
+from collections import defaultdict
+
+
+def gtrend_to_volumes(trends_data, monthly_total_str):
+    # Parse monthly total (e.g. "06/01/2025: 50000")
+    month_str, total_str = monthly_total_str.split(":")
+    month_date = datetime.strptime(month_str.strip(), "%m/%d/%Y")
+    monthly_total = int(total_str.strip())
+    month_key = month_date.strftime("%Y-%m")  # e.g., "2025-06"
+
+    # Collect relative values for that month
+    month_values = []
+    for entry in trends_data:
+        date = datetime.strptime(entry['date_from'], "%Y-%m-%d")
+        if date.strftime("%Y-%m") == month_key:
+            month_values.append(entry['values'][0])
+    total_relative = sum(month_values)
+    if total_relative == 0:
+        raise ValueError(f"No relative values found for {month_key}.")
+
+    # Global scaling factor
+    scale = monthly_total / total_relative
+
+    # Compute daily volumes for ALL days
+    daily_volumes = {}
+    for entry in trends_data:
+        date = datetime.strptime(entry['date_from'], "%Y-%m-%d").strftime("%Y-%m-%d")
+        relative_val = entry['values'][0]
+        daily_volumes[date] = int(round(relative_val * scale))
+
+    return daily_volumes
+
+
+def format_daily_volumes_str(daily_volumes):
+    """Return 'MM/DD/YYYY: Volume, ...' sorted chronologically."""
+    def parse(d):
+        d = d.strip()
+        try:
+            return datetime.strptime(d, "%Y-%m-%d")
+        except ValueError:
+            return datetime.strptime(d, "%m/%d/%Y")
+    items = sorted(((parse(k), v) for k, v in daily_volumes.items()), key=lambda x: x[0])
+    return ", ".join(f"{d.strftime('%m/%d/%Y')}: {int(v)}" for d, v in items)
+
+def monthly_totals_str(s: str) -> str:
+    """
+    Parse 'MM/DD/YYYY: Volume, ...' string and return
+    'MM/01/YYYY: MonthlyTotal, ...' ordered by month.
+    """
+    totals = defaultdict(int)
+
+    # Find all (MM, DD, YYYY, Volume) tuples
+    for mm, dd, yyyy, vol in re.findall(r'(\d{2})/(\d{2})/(\d{4})\s*:\s*(-?\d+)', s):
+        key = (int(yyyy), int(mm))
+        totals[key] += int(vol)
+
+    # Build result parts sorted chronologically
+    parts = []
+    for (yyyy, mm) in sorted(totals):
+        first_day = date(yyyy, mm, 1).strftime('%m/%d/%Y')
+        parts.append(f"{first_day}: {totals[(yyyy, mm)]}")
+
+    return ", ".join(parts)
+
+"""trend = get_trend("PassportCard", "past_90_days")
+print(trend)"""

@@ -9,21 +9,33 @@ client = ApifyClient(API_KEY)
 # Prepare the Actor input
 
 
-def tiktok_top100_with_analytics(analytics_period="1095", type="top100_with_analytics", new=False, period="30"):
+def tiktok_top100_with_analytics(analytics_period="1095", type="top100_with_analytics", new=False, period="30",
+                                 industry="0"):
+    """
+    :param analytics_period: (str) [7 days = "7", 30 days = "30", 120 days = "120", 12 months = "365", 3 yrs = '1095"]
+    :param type: (str) ["top100", "top100_with_analytics", "analytics"]
+    :param new: (boolean)
+    :param period: (str) [7 days = "7", 30 days = "30", 120 days = "120"]
+    :param industry: (str) ["24000000000", "15000000000", "19000000000", "22000000000", "18000000000", "25000000000",
+                            "10000000000", "29000000000", "12000000000", "21000000000", "17000000000", "27000000000",
+                            "28000000000", "13000000000", "23000000000", "26000000000", "11000000000", "14000000000"]
+    :return:
+    """
     run_input = {
         "analytics_period": analytics_period,
         "result_type": type,
         "top100_new_on_board": new,
-        "top100_period": period,  # chan be 7, 30, 120 for days
-        # "top100_industry": "25000000000",
+        "top100_period": period,  # can be 7, 30, 120 for days
     }
+    if industry != "0":
+        run_input['top100_industry'] = industry
+
     # Run the Actor and wait for it to finish
     run = client.actor("codebyte/tiktok-trending-hashtags-analytics").call(run_input=run_input)
 
     result = []
     for item in client.dataset(run["defaultDatasetId"]).iterate_items():
         result.append(item)
-        print(item)
     return result
 
 def tiktok_hashtag_analytics(hashtag_list, analytics_period="1095", type="analytics", new=False):

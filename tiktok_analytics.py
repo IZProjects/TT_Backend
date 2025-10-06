@@ -1,70 +1,155 @@
 from supabase_client import supabase
 from utils.Apify_functions import tiktok_hashtag_analytics
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # ------------------------------------------- functions ---------------------------------------------------------------
 def chunk_list(lst, chunk_size=1000):
     return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
 
+def trends_to_actual(trend_data, total_searches):
+    """
+    Convert Trends relative interest values to actual search/view counts.
+
+    Parameters:
+        trend_data (list of str): Entries in the form "MM/DD/YYYY: relative_interest"
+        total_searches (int or float): Total searches for the entire period
+
+    Returns:
+        list of str: Entries in the form "MM/DD/YYYY: actual_searches"
+    """
+    # Extract numeric values
+    values = [float(entry.split(": ")[1]) for entry in trend_data]
+    total_relative = sum(values)
+
+    # Calculate actual searches for each period
+    searches_per_period = [
+        f"{date}: {round((val / total_relative) * total_searches)}"
+        for date, val in [(entry.split(": ")[0], float(entry.split(": ")[1])) for entry in trend_data]
+    ]
+
+    return searches_per_period
+
+def split_last_pair(s: str):
+    s = s.strip().rstrip(', ')            # tidy trailing comma/space
+    if not s:
+        return "", ""
+    if ', ' in s:
+        rest, last = s.rsplit(', ', 1)    # split at the final comma+space
+        return rest, last
+    else:
+        return "", s
+
 # ------------------------------------------- get hastags -------------------------------------------------------------
-response = (
-    supabase.table("q4")
-    .select("hashtag")
-    .execute()
-)
-hashtags = [item["hashtag"] for item in response.data]
-hashtags = [tag.strip().removeprefix('#') for group in hashtags for tag in group.split(',')]
-hashtags = list(set(hashtags))
+def monthly_tiktok_update():
+    response = (
+        supabase.table("q4")
+        .select("hashtag")
+        .execute()
+    )
+    hashtags = [item["hashtag"] for item in response.data]
+    hashtags = [tag.strip().removeprefix('#') for group in hashtags for tag in group.split(',')]
+    hashtags = list(set(hashtags))
 
-chunks = chunk_list(hashtags)
+    chunks = chunk_list(hashtags)
 
-# ------------------------------------------- get data ----------------------------------------------------------------
-for chunk in chunks:
-    apify = tiktok_hashtag_analytics(chunk)
-    for i in range(len(apify)):
-        data = apify[i]
-        hashtag_name = data['hashtag_name']
-        trend = data['analytics']['trend']
-        formatted_trend = [f"{datetime.utcfromtimestamp(item['time']).strftime('%m/%d/%Y')}: {item['value']}" for item
-                           in trend]
-        trend_string = ', '.join(formatted_trend)
+    # ------------------------------------------- get data ------------------------------------------------------------
+    for chunk in chunks:
+        apify = tiktok_hashtag_analytics(chunk)
+        for i in range(len(apify)):
+            try:
+                # ------------------------------------------- parse appify 3 yr data ----------------------------------
+                data = apify[i]
+                hashtag_name = data['hashtag_name']
+                trend = data['analytics']['trend']
+                formatted_trend = [f"{datetime.utcfromtimestamp(item['time']).strftime('%m/%d/%Y')}: {item['value']}"
+                                   for item in trend]
 
-        ages = data['analytics']['audience_ages_readable']
-        formatted_ages = [f"{item['age_range']}: {item['score']}" for item in ages]
-        ages_string = ', '.join(formatted_ages)
+                ages = data['analytics']['audience_ages_readable']
+                formatted_ages = [f"{item['age_range']}: {item['score']}" for item in ages]
+                ages_string = ', '.join(formatted_ages)
 
-        views = str(data['analytics']['video_views'])
-        posts = str(data['analytics']['publish_cnt'])
-        views_all = str(data['analytics']['video_views_all'])
-        posts_all = str(data['analytics']['publish_cnt_all'])
+                views = str(data['analytics']['video_views'])
+                posts = str(data['analytics']['publish_cnt'])
+                views_all = str(data['analytics']['video_views_all'])
+                posts_all = str(data['analytics']['publish_cnt_all'])
 
-        countries = data['analytics']['audience_countries']
-        formatted_countries = [f"{item['country_info']['value']}: {item['score']}" for item in countries]
-        countries_string = ', '.join(formatted_countries)
+                trend_views = trends_to_actual(formatted_trend, int(views))
+                trend_string = ', '.join(trend_views)
+                past_trend, proj_trend = split_last_pair(trend_string)
 
-        category = data['analytics']['industry_info']['value']
+                countries = data['analytics']['audience_countries']
+                formatted_countries = [f"{item['country_info']['value']}: {item['score']}" for item in countries]
+                countries_string = ', '.join(formatted_countries)
 
-        related_hashtags = data['analytics']['related_hashtags']
-        formatted_hashtags = [item['hashtag_name'] for item in related_hashtags]
-        hashtags_string = ', '.join(formatted_hashtags)
+                category = data['analytics']['industry_info']['value']
 
-        # ------------------------------------------- save to DB ------------------------------------------------------
-        response = (
-            supabase.table("tiktok_analytics")
-            .upsert(
-                {
-                    "hashtag": hashtag_name,
-                    "trend": trend_string,
-                    "ages": ages_string,
-                    "views_3y": views,
-                    "posts_3y": posts,
-                    "views_all": views_all,
-                    "posts_all": posts_all,
-                    "countries": countries_string,
-                    "categories": category,
-                    "related_hashtag": hashtags_string,
-                },
-                on_conflict="hashtag",
-            )
-            .execute()
-        )
+                related_hashtags = data['analytics']['related_hashtags']
+                formatted_hashtags = [item['hashtag_name'] for item in related_hashtags]
+                hashtags_string = ', '.join(formatted_hashtags)
+
+                # ------------------------------------------- save to DB --------------------------------------------------
+                response = (
+                    supabase.table("tiktok_analytics")
+                    .upsert(
+                        {
+                            "hashtag": hashtag_name,
+                            "trend": past_trend,
+                            "ages": ages_string,
+                            "views_3y": views,
+                            "posts_3y": posts,
+                            "views_all": views_all,
+                            "posts_all": posts_all,
+                            "countries": countries_string,
+                            "categories": category,
+                            "related_hashtag": hashtags_string,
+                            "trend_projected": proj_trend,
+                            "created_at": datetime.now(ZoneInfo("Australia/Sydney")).isoformat(),
+                        },
+                        on_conflict="hashtag",
+                    )
+                    .execute()
+                )
+            except Exception as e:
+                print(f"❌ Skipping keyword '{apify[i]['hashtag_name']}' due to error: {e}")
+                continue
+
+def weekly_tiktok_update():
+    response = (
+        supabase.table("tiktok_analytics")
+        .select("*")
+        .execute()
+    )
+    data = response.data
+    chunks = chunk_list(data)
+
+    for chunk in chunks:
+        hashtags = [item["hashtag"] for item in chunk]
+        apify_120days = tiktok_hashtag_analytics(hashtags, analytics_period="120")
+        for i in range(len(apify_120days)):
+            try:
+                data_120days = apify_120days[i]
+                trend_120days = data_120days['analytics']['trend']
+                formatted_trend_120days = [(f"{datetime.utcfromtimestamp(item['time']).strftime('%m/%d/%Y')}: "
+                                            f"{item['value']}") for item in trend_120days]
+                views_120days = data_120days['analytics']['video_views']
+                trend_views_120days = trends_to_actual(formatted_trend_120days, int(views_120days))
+                trend_string_120days = ', '.join(trend_views_120days)
+
+                # ------------------------------------------- save to DB --------------------------------------------------
+                response = (
+                    supabase.table("tiktok_analytics")
+                    .upsert(
+                        {
+                            "hashtag": data_120days['analytics']['hashtag_name'],
+                            "trend_120days": trend_string_120days,
+                            "views_120days": views_120days,
+                            "created_at": datetime.now(ZoneInfo("Australia/Sydney")).isoformat(),
+                        },
+                        on_conflict="hashtag",
+                    )
+                    .execute()
+                )
+            except Exception as e:
+                print(f"❌ Skipping {apify_120days[i]['analytics']['hashtag_name']} due to error: {e}")
+                continue
