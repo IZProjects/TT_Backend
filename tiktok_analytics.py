@@ -2,6 +2,7 @@ from supabase_client import supabase
 from utils.Apify_functions import tiktok_hashtag_analytics
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from utils.helpers import clean_table
 
 # ------------------------------------------- functions ---------------------------------------------------------------
 def chunk_list(lst, chunk_size=1000):
@@ -114,6 +115,8 @@ def monthly_tiktok_update():
                 print(f"❌ Skipping keyword '{apify[i]['hashtag_name']}' due to error: {e}")
                 continue
 
+    clean_table("tiktok_analytics")
+
 def weekly_tiktok_update():
     response = (
         supabase.table("tiktok_analytics")
@@ -153,3 +156,5 @@ def weekly_tiktok_update():
             except Exception as e:
                 print(f"❌ Skipping {apify_120days[i]['analytics']['hashtag_name']} due to error: {e}")
                 continue
+
+    clean_table("tiktok_analytics")

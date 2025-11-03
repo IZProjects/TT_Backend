@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 from supabase_client import supabase
+from utils.helpers import clean_table
 
 # ------------------------------------------- set up OpenAI -----------------------------------------------------------
 load_dotenv()
@@ -78,3 +79,5 @@ def run_kw_category_script():
         except Exception as e:
             print(f"❌ Skipping keyword '{row['keyword']}' due to error: {e}")
             continue
+
+    clean_table("kw_category")

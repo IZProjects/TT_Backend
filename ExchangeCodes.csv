@@ -74,8 +74,4 @@ Bolsa de Valores de Lima,LIM,Peru,PEN,EODHD
 Istanbul Stock Exchange,IS,Turkey,TRY,EODHD
 Cryptocurrencies,CC,Unknown,USD,EODHD
 Hong Kong Stock Exchange,HK,Hong Kong,HKD,EODHD
-Tokyo Stock Exchange,T,Japan,JYP,yfinance
-Saudi Exchange,SA,Saudi Arabia,SAR,yfinance
-Moscow Exchange,ME,Russia,RUB,yfinance
-Bombay Stock Exchange,BO,India,INR,yfinance
-ational Stock Exchange of India,NS,India,INR,yfinance
+Tokyo Stock Exchange,T,Japan,JPY,yf

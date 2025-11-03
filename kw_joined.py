@@ -1,6 +1,8 @@
 from supabase_client import supabase
 from datetime import datetime
 from utils.Linkup_functions import linkup_query
+from utils.helpers import clean_table
+from utils.OpenAI_functions import ask_gpt
 
 def last_value_and_yoy(trend_string: str, backtrack_size=2):
     """
@@ -38,8 +40,40 @@ def last_value_and_yoy(trend_string: str, backtrack_size=2):
 
     return target_dt.strftime("%m/%d/%Y"), target_val, yoy
 
+def get_relation(keyword, company, ticker, system_prompt):
+    check = (
+        supabase.table("kw_joined")
+        .select("tickers")
+        .eq("keyword", keyword)
+        .execute()
+    )
+    if not check.data:
+        answer=ask_gpt(f"How is {keyword} related to the company {company} ({ticker})?", system_prompt)
+        if 'NO RELATION' in answer:
+            answer = linkup_query(f"How is {keyword} related to the company {company} ({ticker})? "
+                            f"If you determine there is no relationship, please return only the words 'NO RELATION' "
+                            f"all capitalised.")
+            if 'NO RELATION' in answer:
+                answer="N/A"
+    else:
+        #answer = check.data[0]['tickers']['relation']
+        answer=ask_gpt(f"How is {keyword} related to the company {company} ({ticker})?", system_prompt)
+        if 'NO RELATION' in answer:
+            answer = linkup_query(f"How is {keyword} related to the company {company} ({ticker})? "
+                            f"If you determine there is no relationship, please return only the words 'NO RELATION' "
+                            f"all capitalised.")
+            if 'NO RELATION' in answer:
+                answer="N/A"
+    return answer
+
 
 def create_kw_joined():
+    system_prompt = ("You are an expert analyst and researcher. You will be given a keyword or hashtag from a social "
+                     "trend and a company. These two have already been determined to be related. "
+                     "Your job is to explain how they are related as part of a report. Try to keep your answer p"
+                     "professional and concise."
+                     "If you determine there is no relationship, please return only the words 'NO RELATION' "
+                     "all capitalised.")
     # ------------------------------------------- get search vol & categories -----------------------------------------
     kw_svc = (supabase.table("kw_search_vol").select("keyword, search_volume, search_volume_projected, "
                                                     "search_volume_90days", "kw_category!inner(categories)")
@@ -63,7 +97,8 @@ def create_kw_joined():
                 'ticker': match['ticker'],
                 'full_name': item['full_name'],
                 'exchange': item['exchange'],
-                'code': match['code']
+                'code': match['code'],
+                'relation': get_relation(item['keyword'], item['full_name'], match['ticker'], system_prompt)
             })
 
     # Convert grouped dict into final list of dicts
@@ -180,6 +215,7 @@ def create_kw_joined():
             supabase.table("kw_joined")
             .select("description")
             .eq("keyword", d['keyword'])
+            .eq("type", 'Tiktok')
             .execute()
         )
         if not check.data:
@@ -195,7 +231,7 @@ def create_kw_joined():
                                             f"Can you tell me why it is trending? Provide your answer in markdown format "
                                             f"starting with a small title.")
         else:
-            pass
+            d['description'] = check.data[0]['description']
 
     joined = merged + hashtags_data
 
@@ -209,3 +245,7 @@ def create_kw_joined():
             .execute()
         )
 
+    clean_table("kw_joined")
+    response = supabase.table("kw_joined").delete().lt('volume', 1000).execute()
+
+create_kw_joined()

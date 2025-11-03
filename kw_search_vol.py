@@ -5,6 +5,8 @@ from utils.DataforSEO_functions import (get_volume, get_trend, gtrend_to_volumes
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from utils.helpers import clean_table
+
 # ------------------------------------------- functions ---------------------------------------------------------------
 def chunk_list(lst, chunk_size=1000):
     return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
@@ -49,6 +51,9 @@ def monthly_search_vol_update():
                 print(f"❌ Skipping {keyword} due to error: {e}")
                 continue
 
+    clean_table("kw_search_vol")
+
+
 
 def weekly_search_vol_update():
     response = (
@@ -90,6 +95,8 @@ def weekly_search_vol_update():
         except Exception as e:
             print(f"❌ Skipping keyword '{data[i]['keyword']}' due to error: {e}")
             continue
+
+    clean_table("kw_search_vol")
 
 
 #monthly_search_vol_update()

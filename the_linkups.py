@@ -4,6 +4,8 @@ from supabase_client import supabase
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
+from utils.helpers import clean_table
+from utils.OpenAI_functions import ask_gpt
 
 # ------------------------------------------- set up OpenAI -----------------------------------------------------------
 load_dotenv()
@@ -11,40 +13,14 @@ api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI()
 
 # ------------------------------------------- OpenAI Query Function ---------------------------------------------------
-def ask_gpt(query):
-    response = client.responses.create(
-        model="gpt-5-nano",
-        input=[
-            {
-                "role": "system",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": "You will be provided with a keyword. Your job is to determine if the keyword is "
-                                "referring to a specific product or brand or if it is referring to something more "
-                                "conceptual like an idea or theme. If it is referring to a product or brand, respond "
-                                "with yes. Otherwise respond with no. Only respond with yes or no in lower case with "
-                                "no punctuations"
-                    }
-                ]
-            },
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": query
-                    }
-                ]
-            }
-        ],
-        #temperature=0,
-    )
-    result = response.output[1].content[0].text
-    return result
+system_prompt = """You will be provided with a keyword. Your job is to determine if the keyword is 
+                referring to a specific product or brand or if it is referring to something more 
+                conceptual like an idea or theme. If it is referring to a product or brand, respond 
+                with yes. Otherwise respond with no. Only respond with yes or no in lower case with 
+                no punctuations"""
 
 def run_linkup_sript(keywords_list):
-    # ---------------------------------------- get keywords ---------------------------------------------------------------
+    # ---------------------------------------- get keywords -----------------------------------------------------------
     response = (
         supabase.table("q1")
         .select("keyword")
@@ -59,16 +35,16 @@ def run_linkup_sript(keywords_list):
 
     keywords_new = [item for item in keywords_list if item not in existing]
 
-    keywords = [kw for kw in keywords_new if ask_gpt(kw).strip().lower() == 'yes']
+    keywords = [kw for kw in keywords_new if ask_gpt(kw, system_prompt).strip().lower() == 'yes']
 
 
-    # ---------------------------------------- start linkup process -------------------------------------------------------
+    # ---------------------------------------- start linkup process ---------------------------------------------------
     for i in range(len(keywords)):
         try:
-            # ---------------------------------------- Q1: Description---------------------------------------------------------
+            # ---------------------------------------- Q1: Description-------------------------------------------------
             Q1 = f"{keywords[i]} has been trending . Can you tell me why it is trending?"
             A1 = linkup_query(Q1)
-            # ---------------------------------------- Q2: Brand/Product-------------------------------------------------------
+            # ---------------------------------------- Q2: Brand/Product-----------------------------------------------
             Q2 = (f"{A1} Is the product or brand in this trend owned by a company? If the answer is Yes, "
                   f"Please return a markdown table with the columns 'Yes/No', 'Product/Brand Name', 'Is Brand Yes/No', "
                   f"'Company Name'. If your answer is No, please return the same table with NA in each field."
@@ -81,7 +57,7 @@ def run_linkup_sript(keywords_list):
             #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
                 #print(df_A2)
 
-            # ---------------------------------------- Q3: Stock Info ---------------------------------------------------------
+            # ---------------------------------------- Q3: Stock Info -------------------------------------------------
             df_A3_list = []
             for k in range(len(df_A2)):
                 if df_A2.at[k, 'Yes/No'].strip().lower() == "yes":
@@ -102,7 +78,7 @@ def run_linkup_sript(keywords_list):
             #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
                 #print(df_A3_concat)
 
-            # ---------------------------------------- Q4: related hashtags ---------------------------------------------------
+            # ---------------------------------------- Q4: related hashtags -------------------------------------------
             if df_A3_concat["Yes/No"].str.lower().eq("yes").any():
                 Q4 = (f"What are the 3 most popular tiktok hashtag for {keywords[i]}? Give me only the hashtags separated "
                       f"with a comma.")
@@ -118,7 +94,7 @@ def run_linkup_sript(keywords_list):
                     .execute()
                 )
 
-                # ---------------------------------------------- Save to DB ---------------------------------------------------
+                # ---------------------------------------------- Save to DB -------------------------------------------
                 for j in range(len(df_A2)):
                     response = (
                         supabase.table("q2")
@@ -162,3 +138,8 @@ def run_linkup_sript(keywords_list):
         except Exception as e:
             print(f"❌ Skipping keyword '{keywords[i]}' due to error: {e}")
             continue
+
+    clean_table("q1")
+    clean_table("q2")
+    clean_table("q3")
+    clean_table("q4")

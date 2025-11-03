@@ -77,3 +77,53 @@ def clear_all():
     delete_vector_stores()
   except:
     print('delete vector stores failed')
+
+def ask_gpt(query, system_prompt, model="gpt-5-nano"):
+  response = client.responses.create(
+    model=model,
+    input=[
+      {
+        "role": "system",
+        "content": [
+          {
+            "type": "input_text",
+            "text": system_prompt,
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "input_text",
+            "text": query
+          }
+        ]
+      }
+    ],
+  )
+  result = response.output[1].content[0].text
+  return result
+
+
+def ask_gpt_formatted(query, system_prompt, output_format, model="gpt-5-nano"):
+  response = client.responses.parse(
+    model=model,
+    input=[
+      {
+        "role": "system",
+        "content": [
+          {"type": "input_text", "text": system_prompt}
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {"type": "input_text", "text": query}
+        ]
+      },
+    ],
+    text_format=output_format,
+  )
+  return response.output_parsed
+

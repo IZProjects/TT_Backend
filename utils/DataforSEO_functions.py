@@ -214,5 +214,39 @@ def monthly_totals_str(s: str) -> str:
 
     return ", ".join(parts)
 
-"""trend = get_trend("PassportCard", "past_90_days")
-print(trend)"""
+
+
+
+
+
+
+
+
+def get_SERP_AI(keyword, language_code="en", location_code=2840):
+    """
+    Fetches Google AI Mode SERP data for a given keyword.
+
+    :param keyword: (str) Search query (e.g., "what is google ai mode")
+    :param language_code: (str) ISO language code, default "en"
+    :param location_code: (int) Numeric location code, default 2840 (US)
+    :return: dict with SERP data if successful, otherwise None
+    """
+
+    post_data = {
+        "0": {
+            "language_code": language_code,
+            "location_code": location_code,
+            "keyword": keyword
+        }
+    }
+
+    response = client.post("/v3/serp/google/ai_mode/live/advanced", post_data)
+
+    if response.get("status_code") == 20000:
+        return response["tasks"][0]["result"][0]['items'][0]['markdown']
+    else:
+        print("error. Code: %d Message: %s" % (response["status_code"], response["status_message"]))
+        return None
+
+
+

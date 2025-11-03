@@ -21,7 +21,24 @@ def get_historical_stock_data(ticker, from_date, to_date):
         df = pd.DataFrame.from_dict(data)
         return df
     else:
-        return f"Error: {response.status_code} - {response.text}"
+        print(f"Error: {response.status_code} - {response.text}")
+        return pd.DataFrame()
+
+def get_data(ticker):
+    # Construct the URL with function inputs
+    url = f'https://eodhd.com/api/eod/{ticker}?&period=d&api_token={api_key}&fmt=json'
+
+    # Make the API request and get the response data
+    response = requests.get(url)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        data = response.json()
+        df = pd.DataFrame.from_dict(data)
+        return df
+    else:
+        print(f"Error: {response.status_code} - {response.text}")
+        return pd.DataFrame()
 
 def get_weekly_data(df):
     df['date'] = pd.to_datetime(df['date'])
@@ -100,27 +117,3 @@ def get_tickers(exchange_code):
 #df = get_exhanges()
 #df.to_csv("EODHD_Exchanges.csv")
 
-
-
-"""from datetime import datetime
-from dateutil.relativedelta import relativedelta
-from_date = (datetime.today() - relativedelta(years=3)).strftime('%Y-%m-%d')
-to_date = datetime.today().strftime('%Y-%m-%d')
-df = get_historical_stock_data("SNROF.US", from_date, to_date)
-dfw = get_weekly_data(df)
-with pd.option_context(
-    "display.max_rows", None,
-    "display.max_columns", None,
-    "display.width", None,
-    "display.max_colwidth", None
-):
-    print(df)
-    print("\n-----------------------------------------------------------------------------------------------------\n")
-    print(dfw)
-"""
-"""from datetime import datetime
-from dateutil.relativedelta import relativedelta
-from_date = (datetime.today() - relativedelta(years=3)).strftime('%Y-%m-%d')
-to_date = datetime.today().strftime('%Y-%m-%d')
-df = get_historical_stock_data(f"SWY.US", from_date, to_date)
-print(df)"""

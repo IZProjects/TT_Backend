@@ -2,9 +2,9 @@ from utils.EODHD_functions import get_historical_stock_data, get_weekly_data
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
-import sqlite3
 import yfinance as yf
 from supabase_client import supabase
+from utils.helpers import clean_table
 
 # ------------------------------------------------ functions ----------------------------------------------------------
 def get_weekly_data_yf(df):
@@ -82,4 +82,4 @@ def run_kw_stock_price_script():
         except Exception as e:
             print(f"{row['ticker']}.{row['code']} for {source} failed: {e}")
 
-    response = supabase.table("kw_tickers").delete().is_("price_history", None).execute()
+    clean_table("kw_tickers")

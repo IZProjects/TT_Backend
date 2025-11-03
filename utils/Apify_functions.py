@@ -10,7 +10,7 @@ client = ApifyClient(API_KEY)
 
 
 def tiktok_top100_with_analytics(analytics_period="1095", type="top100_with_analytics", new=False, period="30",
-                                 industry="0"):
+                                 industry="0",country="ALL"):
     """
     :param analytics_period: (str) [7 days = "7", 30 days = "30", 120 days = "120", 12 months = "365", 3 yrs = '1095"]
     :param type: (str) ["top100", "top100_with_analytics", "analytics"]
@@ -26,6 +26,7 @@ def tiktok_top100_with_analytics(analytics_period="1095", type="top100_with_anal
         "result_type": type,
         "top100_new_on_board": new,
         "top100_period": period,  # can be 7, 30, 120 for days
+        "country": country,
     }
     if industry != "0":
         run_input['top100_industry'] = industry

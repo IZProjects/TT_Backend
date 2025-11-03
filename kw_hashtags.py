@@ -1,6 +1,6 @@
 from supabase_client import supabase
 import os
-
+from utils.helpers import clean_table
 
 def run_kw_hashtags_script():
     # --- 1. Fetch q4 and tiktok_analytics ---
@@ -45,3 +45,5 @@ def run_kw_hashtags_script():
         )
     else:
         print("No matches found.")
+
+    clean_table("kw_hashtags")

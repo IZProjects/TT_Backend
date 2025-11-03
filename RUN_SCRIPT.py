@@ -9,7 +9,7 @@ from kw_category import run_kw_category_script
 from kw_joined import create_kw_joined
 from kw_companies import create_kw_companies
 
-"""print("-------------------------------- GETTING KW LIST --------------------------------")
+print("-------------------------------- GETTING KW LIST --------------------------------")
 kw_list = run_kw_list_script()
 print("-------------------------------- RUNNING LINKUPS --------------------------------")
 run_linkup_sript(kw_list)
@@ -30,6 +30,6 @@ weekly_tiktok_update()
 print("-------------------------------- RUNNING kw_hashtags --------------------------------")
 run_kw_hashtags_script()
 print("-------------------------------- CREATING kw_joined --------------------------------")
-create_kw_joined()"""
+create_kw_joined()
 print("-------------------------------- CREATING kw_companies --------------------------------")
 create_kw_companies()

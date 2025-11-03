@@ -1,13 +1,17 @@
-from utils.DataforSEO_functions import get_SERP_AI
+from utils.Apify_functions import tiktok_top100_with_analytics
 from utils.OpenAI_functions import ask_gpt, ask_gpt_formatted
 from utils.Linkup_functions import markdown_to_df
+from utils.EODHD_functions import get_data
+from utils.helpers import trends_to_actual, split_last_pair, dataframe_to_markdown
+from utils.DataforSEO_functions import get_SERP_AI
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import pandas as pd
 from pydantic import BaseModel
-from utils.helpers import dataframe_to_markdown
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
-from utils.EODHD_functions import get_data
-import yfinance as yf
+from supabase_client import supabase
+
+
+
 
 def trend_what_and_why(hashtag):
     return get_SERP_AI(f"#{hashtag} is trending on tiktok. what is it and why is it trending")
@@ -111,9 +115,83 @@ def insert_code(df, exchanges_tbl, output_format):
     return data
 
 
+def parse_appify_data(apify):
+    allHastags = []
+    for i in range(len(apify)):
+        try:
+            # ------------------------------------------- parse appify 3 yr data ----------------------------------
+            data = apify[i]
+            hashtag_name = data['hashtag_name']
+            trend = data['analytics']['trend']
+            formatted_trend = [f"{datetime.utcfromtimestamp(item['time']).strftime('%m/%d/%Y')}: {item['value']}"
+                               for item in trend]
+
+            ages = data['analytics']['audience_ages_readable']
+            formatted_ages = [f"{item['age_range']}: {item['score']}" for item in ages]
+            ages_string = ', '.join(formatted_ages)
+
+            views = str(data['analytics']['video_views'])
+            posts = str(data['analytics']['publish_cnt'])
+            views_all = str(data['analytics']['video_views_all'])
+            posts_all = str(data['analytics']['publish_cnt_all'])
+
+            trend_views = trends_to_actual(formatted_trend, int(views))
+            trend_string = ', '.join(trend_views)
+            past_trend, proj_trend = split_last_pair(trend_string)
+
+            countries = data['analytics']['audience_countries']
+            formatted_countries = [f"{item['country_info']['value']}: {item['score']}" for item in countries]
+            countries_string = ', '.join(formatted_countries)
+
+            category = data['analytics']['industry_info']['value']
+
+            related_hashtags = data['analytics']['related_hashtags']
+            formatted_hashtags = [item['hashtag_name'] for item in related_hashtags]
+            hashtags_string = ', '.join(formatted_hashtags)
+
+            singleDict = {
+                "hashtag": hashtag_name,
+                "trend": past_trend,
+                "ages": ages_string,
+                "views_3y": views,
+                "posts_3y": posts,
+                "views_all": views_all,
+                "posts_all": posts_all,
+                "countries": countries_string,
+                "categories": category,
+                "related_hashtag": hashtags_string,
+                "trend_projected": proj_trend,
+                "created_at": datetime.now(ZoneInfo("Australia/Sydney")).isoformat()
+            }
+
+            allHastags.append(singleDict)
+        except Exception as e:
+            print(f"❌ Skipping keyword '{apify[i]['hashtag_name']}' due to error: {e}")
+            continue
+
+    return allHastags
 
 
 
+response = (
+    supabase.table("tiktok2")
+    .select("hashtag")
+    .execute()
+)
+existing = [item["hashtag"] for item in response.data]
+
+# ------------------------------------------- Appify scraping ---------------------------------------------------------
+
+apify = tiktok_top100_with_analytics(analytics_period="1095", type="top100_with_analytics", new=True,
+                                        period="30", industry="0", country="ALL")
+
+allHastags = parse_appify_data(apify)
+# remove any duplicate hashtags
+allHastags = list({d['hashtag']: d for d in allHastags}.values())
+# remove existing hashtags
+newHastags = [d for d in allHastags if d.get("hashtag") not in existing]
+
+# --------------------------------------- filter for relevance and get stock info -------------------------------------
 
 # get exchange codes
 df_exchanges = pd.read_csv(r"ExchangeCodes.csv")
@@ -125,28 +203,32 @@ class tickerformat(BaseModel):
     code: str
 
 
-hashtag = "labubu"
-trendInfo = trend_what_and_why(hashtag)
-trendSummary = summarise_trend(trendInfo)
-stockTest = does_trend_have_stocks(hashtag, trendSummary)
-stockResponse = extract_companies_or_None(stockTest)
+data = []
+for dictionary in newHastags:
+    hashtag = dictionary['hashtag']
+    trendInfo = trend_what_and_why(hashtag)
+    trendSummary = summarise_trend(trendInfo)
+    stockTest = does_trend_have_stocks(hashtag, trendSummary)
+    stockResponse = extract_companies_or_None(stockTest)
 
-if stockResponse.lower() != "none":
-    stockInfo = get_ticker_exhcnage_country(stockResponse)
-    markdown = get_markdown_tbl(stockInfo)
-    markdown2 = add_relationship_to_tbl(hashtag, markdown, stockTest)
+    if stockResponse.lower() != "none":
+        stockInfo = get_ticker_exhcnage_country(stockResponse)
+        markdown = get_markdown_tbl(stockInfo)
+        markdown2 = add_relationship_to_tbl(hashtag, markdown, stockTest)
 
+        df = markdown_to_df(markdown2)
+        df = df.dropna().reset_index(drop=True)
+        df = df.astype(str)
+        df = df[~df.isin(["NA"]).any(axis=1)].reset_index(drop=True)
+        df = add_impact_and_direction(df, hashtag, trendSummary)
 
-    df = markdown_to_df(markdown2)
-    df = df.dropna().reset_index(drop=True)
-    df = df.astype(str)
-    df = df[~df.isin(["NA"]).any(axis=1)].reset_index(drop=True)
-    df = add_impact_and_direction(df, hashtag, trendSummary)
+        data = insert_code(df, markdown_exchanges, tickerformat)
+    else:
+        print("No stocks")
 
-    data = insert_code(df, markdown_exchanges, tickerformat)
+    if len(data) > 0:
+        new_dict = dictionary | {'stocks': data, 'description':trendSummary}
+        response = (
+            supabase.table("tiktok2").upsert(new_dict, on_conflict="hashtag").execute()
+        )
 
-    for d in data:
-        print(d)
-
-else:
-    print("No stocks")
