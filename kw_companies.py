@@ -1,9 +1,8 @@
 from supabase_client import supabase
 from collections import defaultdict
-import json
-from utils.Linkup_functions import linkup_query
 from utils.helpers import clean_table
 from utils.OpenAI_functions import ask_gpt
+from utils.DataforSEO_functions import get_SERP_AI
 
 def chunked(iterable, size):
     for i in range(0, len(iterable), size):
@@ -18,7 +17,7 @@ def create_kw_companies():
 
     kw_joined = (
         supabase.table("kw_joined")
-        .select("keyword, type, trend, trend_projected, tickers, yoy, volume")
+        .select("*")
         .execute()
         .data
     )
@@ -40,14 +39,18 @@ def create_kw_companies():
             if ticker is None:
                 continue
             grouped[ticker]["exchange"] = ti.get("exchange")
-            grouped[ticker]["country"] = ask_gpt(ti.get("exchange"), system_prompt)
+            grouped[ticker]["country"] = ti.get("country", ask_gpt(ti.get("exchange"), system_prompt))
             grouped[ticker]["full_name"] = ti.get("full_name")
+            grouped[ticker]["source"] = "EODHD"
+            grouped[ticker]["code"] = ti.get("code")
             grouped[ticker]["keywords"].append({
                 "keyword": row["keyword"],
                 "type": row["type"],
                 "trend": row["trend"],
                 "trend_projected": row["trend_projected"],
                 "relation": ti.get("relation"),
+                "impact": ti.get("impact"),
+                "direction": ti.get("direction"),
             })
             if isinstance(yoy, (int, float)):
                 grouped[ticker]["yoy_sum"] += yoy
@@ -67,6 +70,8 @@ def create_kw_companies():
         base_rows.append({
             "ticker": ticker,
             "exchange": info["exchange"],
+            "code": info["code"],
+            "source": info["source"],
             "country": info["country"],
             "full_name": info["full_name"],
             "keywords": info["keywords"],
@@ -74,24 +79,11 @@ def create_kw_companies():
             "avg_volume": _avg_int(info["vol_sum"], info["vol_count"]),
         })
 
-    # enrich with kw_tickers (code/source). Only keep rows that have a match.
-    tickers = [r["ticker"] for r in base_rows]
-    kw_ticker = (
-        supabase.table("kw_tickers")
-        .select("ticker, code, source")
-        .in_("ticker", tickers)
-        .execute()
-        .data
-    )
-    kw_lookup = {row["ticker"]: row for row in kw_ticker}
 
     enriched_rows = []
     for t in base_rows:
-        m = kw_lookup.get(t["ticker"])
-        if not m or not m.get("code"):   # no match => skip to avoid NULL ticker_id
+        if not t or not t.get("code"):  # no match => skip to avoid NULL ticker_id
             continue
-        t["code"] = m["code"]
-        t["source"] = m["source"]
         t["ticker_id"] = f"{t['ticker']}.{t['code']}"
 
         # fetch/generate description if needed
@@ -103,9 +95,8 @@ def create_kw_companies():
         )
         need_desc = (not check.data) or (check.data[0].get("description") in (None, ""))
         if need_desc:
-            t["description"] = linkup_query(
-                f"Can you give me a description of what {t['full_name']} ({t['ticker']}) does?"
-            )
+            t["description"] = get_SERP_AI(f"Can you give me a description of what {t['full_name']} ({t['ticker']}) "
+                                           f"does?")
 
         enriched_rows.append(t)
 
@@ -113,7 +104,7 @@ def create_kw_companies():
     for batch in chunked(enriched_rows, 500):
         supabase.table("kw_companies").upsert(batch, on_conflict="ticker_id").execute()
 
-    clean_table("kw_companies")
+    #clean_table("kw_companies")
 
 
 

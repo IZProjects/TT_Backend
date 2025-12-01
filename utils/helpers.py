@@ -1,5 +1,6 @@
 from supabase_client import supabase
 import pandas as pd
+from datetime import datetime
 
 def clean_table(tbl_name, uuid='id', timestamp='created_at'):
     """
@@ -83,3 +84,39 @@ def get_weekly_data_yf(df):
     )
 
     return weekly_df
+
+def last_value_and_yoy(trend_string: str, backtrack_size=2):
+    """
+    :param trend_string: "06/01/2024: 10783, 07/01/2024: 77881, 08/01/2024: 94655, ..."
+    :return: (second_last_month_str, value_of_second_last_month, YoY_percent)
+             - month string in MM/DD/YYYY
+             - value (int)
+             - YoY as % (float) or None if unavailable / prev is 0
+    """
+    # Parse "MM/DD/YYYY: value" pairs
+    parts = [p.strip() for p in trend_string.strip().strip(",").split(",") if p.strip()]
+    data = {}
+    for p in parts:
+        date_str, val_str = [x.strip() for x in p.split(":", 1)]
+        dt = datetime.strptime(date_str, "%m/%d/%Y").date()
+        val = int(val_str.replace(",", ""))
+        data[dt] = val
+
+    # Need at least two months to get the second-last
+    if len(data) < backtrack_size:
+        return None, None, None
+
+    # Second-last month by date
+    dates = sorted(data)
+    target_dt = dates[-backtrack_size]
+    target_val = data[target_dt]
+
+    # YoY for that month
+    yoy_dt = target_dt.replace(year=target_dt.year - 1)
+    prev_val = data.get(yoy_dt)
+    if prev_val in (None, 0):
+        yoy = None
+    else:
+        yoy = (target_val - prev_val) / prev_val * 100.0
+
+    return target_dt.strftime("%m/%d/%Y"), target_val, yoy

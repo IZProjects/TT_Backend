@@ -249,4 +249,5 @@ def get_SERP_AI(keyword, language_code="en", location_code=2840):
         return None
 
 
-
+#r = get_SERP_AI("#camskattebo is trending on TikTok after NY Giants RB Cam Skattebo suffered a season-ending dislocated ankle and fibula fracture. His fearless, high-energy persona and post-game celebrations sparked a viral wave of support. Online debate over the tackle (hip-drop) and player safety followed. He had successful surgery and is expected to fully recover for next season, with recovery videos still circulating. I've been told this could have some impact to Microsoft Corporation (MSFT). What is the magnitide (high or low) and direciton (positive or negative) of the impact?")
+#print(r)

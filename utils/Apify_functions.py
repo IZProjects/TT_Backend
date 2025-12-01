@@ -15,7 +15,7 @@ def tiktok_top100_with_analytics(analytics_period="1095", type="top100_with_anal
     :param analytics_period: (str) [7 days = "7", 30 days = "30", 120 days = "120", 12 months = "365", 3 yrs = '1095"]
     :param type: (str) ["top100", "top100_with_analytics", "analytics"]
     :param new: (boolean)
-    :param period: (str) [7 days = "7", 30 days = "30", 120 days = "120"]
+    :param period: (str) [7 days = "7", 30 days = "30", 120 days = "120"] Top 100 ranking period in days
     :param industry: (str) ["24000000000", "15000000000", "19000000000", "22000000000", "18000000000", "25000000000",
                             "10000000000", "29000000000", "12000000000", "21000000000", "17000000000", "27000000000",
                             "28000000000", "13000000000", "23000000000", "26000000000", "11000000000", "14000000000"]

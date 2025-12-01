@@ -10,9 +10,6 @@ import pandas as pd
 from pydantic import BaseModel
 from supabase_client import supabase
 
-
-
-
 def trend_what_and_why(hashtag):
     return get_SERP_AI(f"#{hashtag} is trending on tiktok. what is it and why is it trending")
 
@@ -22,8 +19,8 @@ def summarise_trend(Q):
     return ask_gpt(query=Q, system_prompt=S)
 
 def does_trend_have_stocks(hashtag, summary):
-    return get_SERP_AI(f"#{hashtag} is trending on tiktok. Are there any publicly traded companies that are strongly "
-                       f"affiliated with this trend? Give me only the most relevant companies and how they are related "
+    return get_SERP_AI(f"#{hashtag} is trending on tiktok. Are there any publicly traded companies that may be "
+                       f"strongly financially impacted by this trend?"
                        f"to {hashtag}. Here is some context as to what #{hashtag} is and why it is trending: "
                        f"{summary}")
 def extract_companies_or_None(Q):
@@ -115,6 +112,48 @@ def insert_code(df, exchanges_tbl, output_format):
     return data
 
 
+def analyse_impact(df, trendSummary):
+    class impactFormat(BaseModel):
+        impact: str
+        direction: str
+        relation: str
+
+    results = []
+    for i in range(len(df)):
+        company = df.at[i,'Full Name']
+        ticker = df.at[i,'Ticker']
+        r = get_SERP_AI(f"{trendSummary}. I've been told this could have some impact to {company} "
+                        f"({ticker}). What is the magnitude and direction of the impact if there is "
+                        f"any?")
+        results.append(r)
+
+    impacts = []
+    directions = []
+    relations = []
+    for result in results:
+        S = (f"You will be passed some analysis an expert has done on the relationship between a trend and a company. "
+             f"Your job is to answer the following questions using that analysis. For questions 1 and 2, use one of  "
+             f"the possible answers provided. "
+             f"Q1: What is the financial impact of this trend to the company? Very Low, Low, Moderate, High, Very High "
+             f"or No Impact? "
+             f"Q2: What is the direction of the impact? Positive, Negative or Neutral? "
+             f"Q3: What is the relationship between the trend and the company? Provide a short summary that could go "
+             f"into a report.")
+        Q = result
+        A = ask_gpt_formatted(query=S, system_prompt=Q, model="gpt-5-mini",
+                                                 output_format=impactFormat)
+        impacts.append(A.impact)
+        directions.append(A.direction)
+        relations.append(A.relation)
+
+    df['Impact'] = impacts
+    df['Direction'] = directions
+    df['Relation'] = relations
+
+    return df
+
+
+
 def parse_appify_data(apify):
     allHastags = []
     for i in range(len(apify)):
@@ -173,62 +212,78 @@ def parse_appify_data(apify):
 
 
 
-response = (
-    supabase.table("tiktok2")
-    .select("hashtag")
-    .execute()
-)
-existing = [item["hashtag"] for item in response.data]
 
-# ------------------------------------------- Appify scraping ---------------------------------------------------------
+def tiktok_new(analytics_period, an_type, new, period, industry, country):
+    response = (
+        supabase.table("tiktok2")
+        .select("hashtag")
+        .execute()
+    )
+    existing = [item["hashtag"] for item in response.data]
 
-apify = tiktok_top100_with_analytics(analytics_period="1095", type="top100_with_analytics", new=True,
-                                        period="30", industry="0", country="ALL")
+    # ------------------------------------------- Appify scraping -----------------------------------------------------
 
-allHastags = parse_appify_data(apify)
-# remove any duplicate hashtags
-allHastags = list({d['hashtag']: d for d in allHastags}.values())
-# remove existing hashtags
-newHastags = [d for d in allHastags if d.get("hashtag") not in existing]
+    apify = tiktok_top100_with_analytics(analytics_period=analytics_period, type=an_type, new=new,
+                                            period=period, industry=industry, country=country)
 
-# --------------------------------------- filter for relevance and get stock info -------------------------------------
+    allHastags = parse_appify_data(apify)
+    # remove any duplicate hashtags
+    allHastags = list({d['hashtag']: d for d in allHastags}.values())
+    # remove existing hashtags
+    newHastags = [d for d in allHastags if d.get("hashtag") not in existing]
 
-# get exchange codes
-df_exchanges = pd.read_csv(r"ExchangeCodes.csv")
-markdown_exchanges = dataframe_to_markdown(df_exchanges)
+    # --------------------------------------- filter for relevance and get stock info ---------------------------------
 
-# ticker, code format for AI
-class tickerformat(BaseModel):
-    ticker: str
-    code: str
+    # get exchange codes
+    df_exchanges = pd.read_csv(r"ExchangeCodes.csv")
+    markdown_exchanges = dataframe_to_markdown(df_exchanges)
+
+    # ticker, code format for AI
+    class tickerformat(BaseModel):
+        ticker: str
+        code: str
+
+    data = []
+    for dictionary in newHastags:
+        hashtag = dictionary['hashtag']
+        trendInfo = trend_what_and_why(hashtag)
+        trendSummary = summarise_trend(trendInfo)
+        stockTest = does_trend_have_stocks(hashtag, trendSummary)
+        stockResponse = extract_companies_or_None(stockTest)
+
+        if stockResponse.lower() != "none":
+            stockInfo = get_ticker_exhcnage_country(stockResponse)
+            markdown = get_markdown_tbl(stockInfo)
+            """markdown2 = add_relationship_to_tbl(hashtag, markdown, stockTest)
+
+            df = markdown_to_df(markdown2)
+            df = df.dropna().reset_index(drop=True)
+            df = df.astype(str)
+            df = df[~df.isin(["NA"]).any(axis=1)].reset_index(drop=True)
+            df = add_impact_and_direction(df, hashtag, trendSummary)
+
+            data = insert_code(df, markdown_exchanges, tickerformat)"""
+
+            df = markdown_to_df(markdown)
+            df = df.dropna().reset_index(drop=True)
+            df = df.astype(str)
+            df = df[~df.isin(["NA"]).any(axis=1)].reset_index(drop=True)
+            df = analyse_impact(df, trendSummary)
+            data = insert_code(df, markdown_exchanges, tickerformat)
+            print(df.columns)
+            print(df)
+
+        else:
+            print("No stocks")
+
+        if len(data) > 0:
+            new_dict = dictionary | {'stocks': data, 'description':trendSummary}
+            response = (
+                supabase.table("tiktok2").upsert(new_dict, on_conflict="hashtag").execute()
+            )
 
 
-data = []
-for dictionary in newHastags:
-    hashtag = dictionary['hashtag']
-    trendInfo = trend_what_and_why(hashtag)
-    trendSummary = summarise_trend(trendInfo)
-    stockTest = does_trend_have_stocks(hashtag, trendSummary)
-    stockResponse = extract_companies_or_None(stockTest)
-
-    if stockResponse.lower() != "none":
-        stockInfo = get_ticker_exhcnage_country(stockResponse)
-        markdown = get_markdown_tbl(stockInfo)
-        markdown2 = add_relationship_to_tbl(hashtag, markdown, stockTest)
-
-        df = markdown_to_df(markdown2)
-        df = df.dropna().reset_index(drop=True)
-        df = df.astype(str)
-        df = df[~df.isin(["NA"]).any(axis=1)].reset_index(drop=True)
-        df = add_impact_and_direction(df, hashtag, trendSummary)
-
-        data = insert_code(df, markdown_exchanges, tickerformat)
-    else:
-        print("No stocks")
-
-    if len(data) > 0:
-        new_dict = dictionary | {'stocks': data, 'description':trendSummary}
-        response = (
-            supabase.table("tiktok2").upsert(new_dict, on_conflict="hashtag").execute()
-        )
-
+# [analytics_period, type, new, period, industry, country]
+apify_inputs = [["1095", "top100_with_analytics", True, "30", "0", "ALL"]]
+for l in apify_inputs:
+    tiktok_new(l[0], l[1], l[2], l[3], l[4], l[5])
