@@ -39,7 +39,9 @@ for d in tiktok2:
                       "trend_st": d['trend_120days'],
                       "description": d['description'],
                       "tickers": d['stocks'],
-                      "other_data": other_data
+                      "other_data": other_data,
+                      "impact_score": d['impact_score'],
+                      "impact_counts": d['impact_counts']
                   },
                   on_conflict="keyword",
               ).execute()

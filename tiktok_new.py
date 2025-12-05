@@ -20,7 +20,7 @@ def summarise_trend(Q):
 
 def does_trend_have_stocks(hashtag, summary):
     return get_SERP_AI(f"#{hashtag} is trending on tiktok. Are there any publicly traded companies that may be "
-                       f"strongly financially impacted by this trend?"
+                       f"strongly impacted by this trend?"
                        f"to {hashtag}. Here is some context as to what #{hashtag} is and why it is trending: "
                        f"{summary}")
 def extract_companies_or_None(Q):
@@ -37,7 +37,8 @@ def get_ticker_exhcnage_country(companies):
 def get_markdown_tbl(text):
     S = (f"You will be provided some information of some companies. For all the public companies, create a markdown "
          f"table with the following columns: 'Full Name', 'Ticker', 'Exchange', 'Country'. Fill any columns or rows "
-         f"you don't know with NA. Do not provide anything other than the markdown table.")
+         f"you don't know with NA. Use only the information provided. Do not provide anything other than the markdown "
+         f"table.")
     return ask_gpt(query=text, system_prompt=S)
 
 
@@ -46,28 +47,6 @@ def add_relationship_to_tbl(hashtag, markdown, relationship):
          f"{hashtag}. Add the relationship into the markdown table in a new column named Relation")
     Q = f"Markdown company table: {markdown}, relationship text: {relationship}"
     return ask_gpt(query=Q, system_prompt=S)
-
-
-def add_impact_and_direction(df, hashtag, trendSummary):
-    magnitude = []
-    direction = []
-    for i in range(len(df)):
-        company = df.at[i,'Full Name']
-        relation = df.at[i,'Relation']
-        S = (f"You will be given a company, a trending hashtag, the reason the hashtag is trending and the "
-              f"relationship between the company and the trend. Your job is to provide 2 labels informing if the trend "
-              f"will have a big impact on the whole company's future financial performance. Consider the size of the "
-              f"company and its core businesses. Your first label is to describe the magnitude of the impact eg "
-              f"'High', 'Low', 'No Impact' and the second label the direction of the impact eg 'Positive', 'Negative' "
-              f"or 'Neutral'. Only provide me with the labels separated by a comma.")
-        Q = f"company: {company}, hashtag: {hashtag}, reason for trend: {trendSummary}, relationship: {relation}"
-        A = ask_gpt(query=Q, system_prompt=S)
-        a, b = A.split(",")
-        magnitude.append(a)
-        direction.append(b)
-    df["Impact"] = magnitude
-    df["Direction"] = direction
-    return df
 
 def check_data_availability(ticker, code):
     df_price = get_data(f"{ticker}.{code}")
@@ -142,15 +121,36 @@ def analyse_impact(df, trendSummary):
         Q = result
         A = ask_gpt_formatted(query=S, system_prompt=Q, model="gpt-5-mini",
                                                  output_format=impactFormat)
-        impacts.append(A.impact)
-        directions.append(A.direction)
-        relations.append(A.relation)
+        impacts.append(A.impact or "")
+        directions.append(A.direction or "")
+        relations.append(A.relation or "")
 
     df['Impact'] = impacts
     df['Direction'] = directions
     df['Relation'] = relations
 
-    return df
+    markdown = dataframe_to_markdown(df)
+    S = """
+    You are given a markdown table containing companies related to a trend. Some companies may appear multiple times
+    because they are listed on different exchanges.
+
+    Your tasks:
+    - Identify rows that refer to the same underlying company.
+    - For each duplicated company, review all values in the 'Impact', 'Direction', and 'Relationship' columns.
+      Generate a single, consolidated value for each column based on all provided information, and apply these
+      consolidated values to every row for that company.
+    - If there are no duplicates, return the table unchanged.
+
+    Output requirements:
+    - Return only the final markdown table.
+    - Do not include explanations, reasoning, or extra text.
+    """
+    Q = markdown
+    A = ask_gpt(query=Q, system_prompt=S)
+
+    df_edited = markdown_to_df(A)
+
+    return df_edited
 
 
 
@@ -211,9 +211,16 @@ def parse_appify_data(apify):
     return allHastags
 
 
-
-
 def tiktok_new(analytics_period, an_type, new, period, industry, country):
+    impactOrder = ['Very High','High','Moderate','Low','Very Low']
+    impact_map = {
+        'Very High': 5,
+        'High': 4,
+        'Moderate': 3,
+        'Low': 2,
+        'Very Low': 1,
+    }
+
     response = (
         supabase.table("tiktok2")
         .select("hashtag")
@@ -221,30 +228,32 @@ def tiktok_new(analytics_period, an_type, new, period, industry, country):
     )
     existing = [item["hashtag"] for item in response.data]
 
-    # ------------------------------------------- Appify scraping -----------------------------------------------------
-
-    apify = tiktok_top100_with_analytics(analytics_period=analytics_period, type=an_type, new=new,
-                                            period=period, industry=industry, country=country)
+    apify = tiktok_top100_with_analytics(
+        analytics_period=analytics_period,
+        type=an_type,
+        new=new,
+        period=period,
+        industry=industry,
+        country=country
+    )
 
     allHastags = parse_appify_data(apify)
-    # remove any duplicate hashtags
     allHastags = list({d['hashtag']: d for d in allHastags}.values())
-    # remove existing hashtags
     newHastags = [d for d in allHastags if d.get("hashtag") not in existing]
 
-    # --------------------------------------- filter for relevance and get stock info ---------------------------------
-
-    # get exchange codes
     df_exchanges = pd.read_csv(r"ExchangeCodes.csv")
     markdown_exchanges = dataframe_to_markdown(df_exchanges)
 
-    # ticker, code format for AI
     class tickerformat(BaseModel):
         ticker: str
         code: str
 
-    data = []
     for dictionary in newHastags:
+        # reset per hashtag
+        data = []
+        impact_score = None
+        impact_counts = None
+
         hashtag = dictionary['hashtag']
         trendInfo = trend_what_and_why(hashtag)
         trendSummary = summarise_trend(trendInfo)
@@ -254,33 +263,51 @@ def tiktok_new(analytics_period, an_type, new, period, industry, country):
         if stockResponse.lower() != "none":
             stockInfo = get_ticker_exhcnage_country(stockResponse)
             markdown = get_markdown_tbl(stockInfo)
-            """markdown2 = add_relationship_to_tbl(hashtag, markdown, stockTest)
-
-            df = markdown_to_df(markdown2)
-            df = df.dropna().reset_index(drop=True)
-            df = df.astype(str)
-            df = df[~df.isin(["NA"]).any(axis=1)].reset_index(drop=True)
-            df = add_impact_and_direction(df, hashtag, trendSummary)
-
-            data = insert_code(df, markdown_exchanges, tickerformat)"""
 
             df = markdown_to_df(markdown)
             df = df.dropna().reset_index(drop=True)
             df = df.astype(str)
             df = df[~df.isin(["NA"]).any(axis=1)].reset_index(drop=True)
             df = analyse_impact(df, trendSummary)
-            data = insert_code(df, markdown_exchanges, tickerformat)
-            print(df.columns)
-            print(df)
 
+            # keep only rows with valid impact labels
+            df = df[df['Impact'].isin(impact_map.keys())]
+
+            if not df.empty:
+                # numeric impact
+                df['Impact_num'] = df['Impact'].map(impact_map).astype(float)
+
+                # impact score as plain Python float
+                impact_score = float(df['Impact_num'].mean())
+
+                # counts as plain Python ints
+                counts = df['Impact'].value_counts()
+                impact_counts = {
+                    k: int(counts.get(k, 0)) for k in impactOrder
+                }
+
+                # optional: ordered categorical for sorting / display
+                df['Impact'] = pd.Categorical(df['Impact'],
+                                              categories=impactOrder,
+                                              ordered=True)
+                df = df.sort_values('Impact').reset_index(drop=True)
+
+                data = insert_code(df, markdown_exchanges, tickerformat)
         else:
             print("No stocks")
 
+        # only upsert if we actually have stock data
         if len(data) > 0:
-            new_dict = dictionary | {'stocks': data, 'description':trendSummary}
-            response = (
-                supabase.table("tiktok2").upsert(new_dict, on_conflict="hashtag").execute()
-            )
+            new_dict = dictionary | {
+                'stocks': data,
+                'description': trendSummary,
+                'impact_score': impact_score,      # now a plain float
+                'impact_counts': impact_counts     # now plain ints
+            }
+
+            supabase.table("tiktok2").upsert(
+                new_dict, on_conflict="hashtag"
+            ).execute()
 
 
 # [analytics_period, type, new, period, industry, country]
