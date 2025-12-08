@@ -15,8 +15,8 @@ def clean_table(tbl_name, uuid='id', timestamp='created_at'):
 
     for col in columns:
         response = supabase.table(tbl_name).delete().is_(col, None).execute()
-        if col in text_cols and col != timestamp and col != uuid:
-            response = supabase.table(tbl_name).delete().eq(col, "").execute()
+        #if col in text_cols and col != timestamp and col != uuid:
+            #response = supabase.table(tbl_name).delete().eq(col, "").execute()
 
 
 def chunk_list(lst, chunk_size=1000):

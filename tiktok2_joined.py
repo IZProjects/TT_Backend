@@ -28,7 +28,7 @@ for d in tiktok2:
               .upsert(
                   {
                       "keyword": d['hashtag'],
-                      "created_at": d['created_at'],
+                      "updated_at": d['updated_at'],
                       "trend": d['trend'],
                       "categories": d['trend'],
                       "type": 'Tiktok',

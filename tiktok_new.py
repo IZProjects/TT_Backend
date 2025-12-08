@@ -1,3 +1,5 @@
+import time
+
 from utils.Apify_functions import tiktok_top100_with_analytics
 from utils.OpenAI_functions import ask_gpt, ask_gpt_formatted
 from utils.Linkup_functions import markdown_to_df
@@ -11,42 +13,53 @@ from pydantic import BaseModel
 from supabase_client import supabase
 
 def trend_what_and_why(hashtag):
-    return get_SERP_AI(f"#{hashtag} is trending on tiktok. what is it and why is it trending")
+    return get_SERP_AI(f"#{hashtag} is trending on tiktok. What is it and why is it trending")
 
 def summarise_trend(Q):
-    S = ("You will be given some text describing what something is and why it is trending. Please summarise it in less "
-         "than 500 characters.")
+    S = """
+    You will be given text describing what something is and why it is trending. Your task is to summarise this information
+    in fewer than 500 characters.
+
+    Output only the summary with no additional commentary.
+    """
     return ask_gpt(query=Q, system_prompt=S)
 
 def does_trend_have_stocks(hashtag, summary):
-    return get_SERP_AI(f"#{hashtag} is trending on tiktok. Are there any publicly traded companies that may be "
-                       f"strongly impacted by this trend?"
-                       f"to {hashtag}. Here is some context as to what #{hashtag} is and why it is trending: "
-                       f"{summary}")
+    return get_SERP_AI(f"#{hashtag} is currently trending on TikTok. Are there any publicly traded companies that may be strongly "
+    f"impacted by this trend? Here is some context explaining what #{hashtag} is and why it is trending:\n\n"
+    f"{summary}")
+
 def extract_companies_or_None(Q):
-    S = ("You will be provided with some text. If there are any publicly traded companies in the text "
-          "please extract the names of all the companies in a markdown list. If there are none, return 'none' without "
-         "any other text or punctuation.")
-    return ask_gpt(query=Q, system_prompt=S)
+    S = """
+    You will be given a piece of text. Identify any publicly traded companies mentioned in the text.
+
+    Tasks:
+    - If publicly traded companies are present, extract all company names and return them as a markdown list.
+    - If no publicly traded companies are mentioned, return only the word 'none'.
+
+    Output rules:
+    - Do not include explanations, reasoning, or additional text.
+    - Do not add any punctuation beyond what is required for a markdown list.
+    """
+    return ask_gpt(query=Q, system_prompt=S, model="gpt-5-mini")
 
 def get_ticker_exhcnage_country(companies):
-    return get_SERP_AI(f"Can you please give me the give me the full name of the stock, the stock ticker, the exchange "
-                       f"the stock is in, the country the exchange is in for these public traded companies "
-                       f"{companies}.")
+    return get_SERP_AI(f"Please provide the full company name, stock ticker and exchange"
+                       f"for the following publicly traded companies: {companies}.")
 
 def get_markdown_tbl(text):
-    S = (f"You will be provided some information of some companies. For all the public companies, create a markdown "
-         f"table with the following columns: 'Full Name', 'Ticker', 'Exchange', 'Country'. Fill any columns or rows "
-         f"you don't know with NA. Use only the information provided. Do not provide anything other than the markdown "
-         f"table.")
+    S = """
+    You will be given information about several companies. Your task is to identify all public companies and create a
+    markdown table with the following columns: 'Full Name', 'Ticker', 'Exchange'.
+
+    Rules:
+    - If any field is missing or cannot be determined, fill it with 'NA'.
+    - Do not infer or add information that was not explicitly given.
+    - Output only the final markdown table and nothing else.
+    """
+
     return ask_gpt(query=text, system_prompt=S)
 
-
-def add_relationship_to_tbl(hashtag, markdown, relationship):
-    S = (f"You will be provided with a markdown table of companies and some text on how these companies relate to the "
-         f"{hashtag}. Add the relationship into the markdown table in a new column named Relation")
-    Q = f"Markdown company table: {markdown}, relationship text: {relationship}"
-    return ask_gpt(query=Q, system_prompt=S)
 
 def check_data_availability(ticker, code):
     df_price = get_data(f"{ticker}.{code}")
@@ -58,15 +71,25 @@ def check_data_availability(ticker, code):
 def insert_code(df, exchanges_tbl, output_format):
     data = []
     for index, row in df.iterrows():
-        S = ("You will be passed some information of a company and a markdown table of some stock exchange "
-              "information. The The ticker that is passed is not nessecarily in the right format. The ticker "
-              "you return should be without any exchange codes. The usage code you return should correspond to "
-              "on of the values in the the usage_code column of the exchange information markdown table I "
-              "provided. Do not add any punctuations. If you don't know, insert the code as NA")
+        S = """
+        You will receive information about a company and a markdown table containing stock exchange information.
+        The ticker provided may not be in the correct format.
 
-        Q = (f"The company {row['Full Name']} has the ticker {row['Ticker']} in the exchange {row['Exchange']}. "
-              f"\n Here is the exchange information table: {exchanges_tbl}. Please provide the cleaned "
-              f"ticker as well as the usage_code as per the exchange information table.")
+        Your tasks:
+        - Return the corrected ticker symbol with all exchange codes removed.
+        - Return the appropriate usage_code based on the values in the 'usage_code' column of the provided markdown table.
+        - If you cannot determine the correct usage_code, return "NA".
+
+        Output requirements:
+        - Do not add punctuation.
+        - Output only the corrected ticker and the usage_code.
+        """
+
+        Q = (
+            f"The company {row['Full Name']} has the ticker '{row['Ticker']}' on the exchange '{row['Exchange']}'. "
+            f"Here is the exchange information table:\n{exchanges_tbl}\n"
+            f"Please return the cleaned ticker (with no exchange codes) and the appropriate usage_code based on the table."
+        )
 
         A = ask_gpt_formatted(query=S, system_prompt=Q, model="gpt-5-mini",
                                                  output_format=output_format)
@@ -80,7 +103,6 @@ def insert_code(df, exchanges_tbl, output_format):
                           "full_name": row['Full Name'],
                           "code": code,
                           "exchange": row['Exchange'],
-                          "country": row['Country'],
                           "relation": row['Relation'],
                           "impact": row['Impact'],
                           "direction": row['Direction'],
@@ -97,40 +119,83 @@ def analyse_impact(df, trendSummary):
         direction: str
         relation: str
 
-    results = []
-    for i in range(len(df)):
-        company = df.at[i,'Full Name']
-        ticker = df.at[i,'Ticker']
-        r = get_SERP_AI(f"{trendSummary}. I've been told this could have some impact to {company} "
-                        f"({ticker}). What is the magnitude and direction of the impact if there is "
-                        f"any?")
-        results.append(r)
-
     impacts = []
     directions = []
     relations = []
-    for result in results:
-        S = (f"You will be passed some analysis an expert has done on the relationship between a trend and a company. "
-             f"Your job is to answer the following questions using that analysis. For questions 1 and 2, use one of  "
-             f"the possible answers provided. "
-             f"Q1: What is the financial impact of this trend to the company? Very Low, Low, Moderate, High, Very High "
-             f"or No Impact? "
-             f"Q2: What is the direction of the impact? Positive, Negative or Neutral? "
-             f"Q3: What is the relationship between the trend and the company? Provide a short summary that could go "
-             f"into a report.")
-        Q = result
-        A = ask_gpt_formatted(query=S, system_prompt=Q, model="gpt-5-mini",
-                                                 output_format=impactFormat)
-        impacts.append(A.impact or "")
-        directions.append(A.direction or "")
-        relations.append(A.relation or "")
 
+    # ---- Row-by-row processing to keep lengths aligned with df ----
+    for i in range(len(df)):
+        company = df.at[i, 'Full Name']
+        ticker = df.at[i, 'Ticker']
+
+        # 1) Get SERP analysis
+        try:
+            analysis = get_SERP_AI(
+                f"{trendSummary}. I've been told this could have some impact to {company} "
+                f"({ticker}). What is the magnitude and direction of the impact if there is "
+                f"any?"
+            )
+        except Exception as e:
+            print(f"get_SERP_AI failed for row {i}: {e}")
+            analysis = None
+
+        # If no analysis, append empty placeholders to keep list lengths == len(df)
+        if not analysis:
+            impacts.append("")
+            directions.append("")
+            relations.append("")
+            time.sleep(1)
+            continue
+
+        # 2) Classify impact/direction/relationship with GPT
+        system_prompt = """
+        You will receive expert analysis describing the relationship between a trend and a company. Your task is to answer
+        three questions based solely on that analysis.
+
+        Answering rules:
+        - For Questions 1 and 2, you must choose exactly one option from the lists provided.
+        - For Question 3, provide a concise summary suitable for inclusion in a report.
+
+        Questions:
+        1. What is the financial impact of this trend on the company?
+           Choose one: Very Low, Low, Moderate, High, Very High, or No Impact.
+        2. What is the direction of the impact?
+           Choose one: Positive, Negative, or Neutral.
+        3. What is the relationship between the trend and the company?
+           Provide a short, clear summary explaining the relationship.
+
+        Output only your three answers. Do not include explanations, reasoning, or additional commentary.
+        """
+
+        try:
+            # analysis text is the "query", instructions are the "system_prompt"
+            A = ask_gpt_formatted(
+                query=analysis,
+                system_prompt=system_prompt,
+                model="gpt-5-mini",
+                output_format=impactFormat
+            )
+            impacts.append(A.impact or "")
+            directions.append(A.direction or "")
+            relations.append(A.relation or "")
+        except Exception as e:
+            print(f"ask_gpt_formatted failed for row {i}: {e}")
+            impacts.append("")
+            directions.append("")
+            relations.append("")
+
+        time.sleep(1)
+
+    # At this point, len(impacts) == len(directions) == len(relations) == len(df)
+    df = df.copy()
     df['Impact'] = impacts
     df['Direction'] = directions
     df['Relation'] = relations
 
+    # ---- De-duplicate companies via markdown round-trip ----
     markdown = dataframe_to_markdown(df)
-    S = """
+
+    system_prompt_dedupe = """
     You are given a markdown table containing companies related to a trend. Some companies may appear multiple times
     because they are listed on different exchanges.
 
@@ -145,10 +210,9 @@ def analyse_impact(df, trendSummary):
     - Return only the final markdown table.
     - Do not include explanations, reasoning, or extra text.
     """
-    Q = markdown
-    A = ask_gpt(query=Q, system_prompt=S)
 
-    df_edited = markdown_to_df(A)
+    edited_markdown = ask_gpt(query=markdown, system_prompt=system_prompt_dedupe)
+    df_edited = markdown_to_df(edited_markdown)
 
     return df_edited
 
@@ -160,14 +224,14 @@ def parse_appify_data(apify):
         try:
             # ------------------------------------------- parse appify 3 yr data ----------------------------------
             data = apify[i]
+
+            # REQUIRED (keep strict)
             hashtag_name = data['hashtag_name']
             trend = data['analytics']['trend']
-            formatted_trend = [f"{datetime.utcfromtimestamp(item['time']).strftime('%m/%d/%Y')}: {item['value']}"
-                               for item in trend]
-
-            ages = data['analytics']['audience_ages_readable']
-            formatted_ages = [f"{item['age_range']}: {item['score']}" for item in ages]
-            ages_string = ', '.join(formatted_ages)
+            formatted_trend = [
+                f"{datetime.utcfromtimestamp(item['time']).strftime('%m/%d/%Y')}: {item['value']}"
+                for item in trend
+            ]
 
             views = str(data['analytics']['video_views'])
             posts = str(data['analytics']['publish_cnt'])
@@ -178,14 +242,29 @@ def parse_appify_data(apify):
             trend_string = ', '.join(trend_views)
             past_trend, proj_trend = split_last_pair(trend_string)
 
-            countries = data['analytics']['audience_countries']
-            formatted_countries = [f"{item['country_info']['value']}: {item['score']}" for item in countries]
+            # OPTIONAL FIELDS (safe fallbacks)
+
+            # 1. Ages
+            ages = data.get('analytics', {}).get('audience_ages_readable', [])
+            formatted_ages = [
+                f"{item.get('age_range', '')}: {item.get('score', '')}" for item in ages
+            ]
+            ages_string = ', '.join(formatted_ages)
+
+            # 2. Countries
+            countries = data.get('analytics', {}).get('audience_countries', [])
+            formatted_countries = [
+                f"{item.get('country_info', {}).get('value', '')}: {item.get('score', '')}"
+                for item in countries
+            ]
             countries_string = ', '.join(formatted_countries)
 
-            category = data['analytics']['industry_info']['value']
+            # 3. Industry Category
+            category = data.get('analytics', {}).get('industry_info', {}).get('value', '')
 
-            related_hashtags = data['analytics']['related_hashtags']
-            formatted_hashtags = [item['hashtag_name'] for item in related_hashtags]
+            # 4. Related Hashtags
+            related_hashtags = data.get('analytics', {}).get('related_hashtags', [])
+            formatted_hashtags = [item.get('hashtag_name', '') for item in related_hashtags]
             hashtags_string = ', '.join(formatted_hashtags)
 
             singleDict = {
@@ -200,10 +279,11 @@ def parse_appify_data(apify):
                 "categories": category,
                 "related_hashtag": hashtags_string,
                 "trend_projected": proj_trend,
-                "created_at": datetime.now(ZoneInfo("Australia/Sydney")).isoformat()
+                "updated_at": datetime.now(ZoneInfo("Australia/Sydney")).isoformat()
             }
 
             allHastags.append(singleDict)
+
         except Exception as e:
             print(f"❌ Skipping keyword '{apify[i]['hashtag_name']}' due to error: {e}")
             continue
@@ -249,68 +329,71 @@ def tiktok_new(analytics_period, an_type, new, period, industry, country):
         code: str
 
     for dictionary in newHastags:
-        # reset per hashtag
-        data = []
-        impact_score = None
-        impact_counts = None
+        try:
+            # reset per hashtag
+            data = []
+            impact_score = None
+            impact_counts = None
 
-        hashtag = dictionary['hashtag']
-        trendInfo = trend_what_and_why(hashtag)
-        trendSummary = summarise_trend(trendInfo)
-        stockTest = does_trend_have_stocks(hashtag, trendSummary)
-        stockResponse = extract_companies_or_None(stockTest)
+            hashtag = dictionary['hashtag']
+            trendInfo = trend_what_and_why(hashtag)
+            trendSummary = summarise_trend(trendInfo)
+            stockTest = does_trend_have_stocks(hashtag, trendSummary)
+            stockResponse = extract_companies_or_None(stockTest)
 
-        if stockResponse.lower() != "none":
-            stockInfo = get_ticker_exhcnage_country(stockResponse)
-            markdown = get_markdown_tbl(stockInfo)
+            if stockResponse.lower() != "none":
+                stockInfo = get_ticker_exhcnage_country(stockResponse)
+                markdown = get_markdown_tbl(stockInfo)
 
-            df = markdown_to_df(markdown)
-            df = df.dropna().reset_index(drop=True)
-            df = df.astype(str)
-            df = df[~df.isin(["NA"]).any(axis=1)].reset_index(drop=True)
-            df = analyse_impact(df, trendSummary)
+                df = markdown_to_df(markdown)
+                df = df.dropna().reset_index(drop=True)
+                df = df.astype(str)
+                df = df[~df.isin(["NA"]).any(axis=1)].reset_index(drop=True)
+                df = analyse_impact(df, trendSummary)
 
-            # keep only rows with valid impact labels
-            df = df[df['Impact'].isin(impact_map.keys())]
+                # keep only rows with valid impact labels
+                df = df[df['Impact'].isin(impact_map.keys())]
 
-            if not df.empty:
-                # numeric impact
-                df['Impact_num'] = df['Impact'].map(impact_map).astype(float)
+                if not df.empty:
+                    # numeric impact
+                    df['Impact_num'] = df['Impact'].map(impact_map).astype(float)
 
-                # impact score as plain Python float
-                impact_score = float(df['Impact_num'].mean())
+                    # impact score as plain Python float
+                    impact_score = float(df['Impact_num'].mean())
 
-                # counts as plain Python ints
-                counts = df['Impact'].value_counts()
-                impact_counts = {
-                    k: int(counts.get(k, 0)) for k in impactOrder
+                    # counts as plain Python ints
+                    counts = df['Impact'].value_counts()
+                    impact_counts = {
+                        k: int(counts.get(k, 0)) for k in impactOrder
+                    }
+
+                    # optional: ordered categorical for sorting / display
+                    df['Impact'] = pd.Categorical(df['Impact'],
+                                                  categories=impactOrder,
+                                                  ordered=True)
+                    df = df.sort_values('Impact').reset_index(drop=True)
+
+                    data = insert_code(df, markdown_exchanges, tickerformat)
+            else:
+                print("No stocks")
+
+            # only upsert if we actually have stock data
+            if len(data) > 0:
+                new_dict = dictionary | {
+                    'stocks': data,
+                    'description': trendSummary,
+                    'impact_score': impact_score,      # now a plain float
+                    'impact_counts': impact_counts     # now plain ints
                 }
 
-                # optional: ordered categorical for sorting / display
-                df['Impact'] = pd.Categorical(df['Impact'],
-                                              categories=impactOrder,
-                                              ordered=True)
-                df = df.sort_values('Impact').reset_index(drop=True)
+                supabase.table("tiktok2").upsert(
+                    new_dict, on_conflict="hashtag"
+                ).execute()
 
-                data = insert_code(df, markdown_exchanges, tickerformat)
-        else:
-            print("No stocks")
-
-        # only upsert if we actually have stock data
-        if len(data) > 0:
-            new_dict = dictionary | {
-                'stocks': data,
-                'description': trendSummary,
-                'impact_score': impact_score,      # now a plain float
-                'impact_counts': impact_counts     # now plain ints
-            }
-
-            supabase.table("tiktok2").upsert(
-                new_dict, on_conflict="hashtag"
-            ).execute()
-
+        except Exception as e:
+            print(f"Error in the main loop {e}")
 
 # [analytics_period, type, new, period, industry, country]
-apify_inputs = [["1095", "top100_with_analytics", True, "30", "0", "ALL"]]
+apify_inputs = [["1095", "top100_with_analytics", False, "30", "15000000000", "ALL"]]
 for l in apify_inputs:
     tiktok_new(l[0], l[1], l[2], l[3], l[4], l[5])

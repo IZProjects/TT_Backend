@@ -243,6 +243,7 @@ def get_SERP_AI(keyword, language_code="en", location_code=2840):
     response = client.post("/v3/serp/google/ai_mode/live/advanced", post_data)
 
     if response.get("status_code") == 20000:
+        print(response)
         return response["tasks"][0]["result"][0]['items'][0]['markdown']
     else:
         print("error. Code: %d Message: %s" % (response["status_code"], response["status_message"]))

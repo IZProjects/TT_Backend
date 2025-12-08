@@ -4,17 +4,43 @@ from utils.helpers import clean_table
 from utils.OpenAI_functions import ask_gpt
 from utils.DataforSEO_functions import get_SERP_AI
 
+exchanges = ("NASDAQ Stock Market, New York Stock Exchange, OTC Markets Group, London Stock Exchange, "
+             "Toronto Stock Exchange, Neo Exchange (Canada), TSX Venture Exchange, Börse Berlin, Börse Hamburg, "
+             "Deutsche Börse Xetra, Börse Düsseldorf, Börse Hannover, Börse München (Munich), Börse Stuttgart, "
+             "Börse Frankfurt, Luxembourg Stock Exchange, Wiener Börse (Vienna Stock Exchange), Euronext Paris, "
+             "Euronext Brussels, Bolsas y Mercados Españoles (Spanish Exchanges), SIX Swiss Exchange, Euronext Lisbon, "
+             "Euronext Amsterdam, Nasdaq Iceland, Euronext Dublin, Nasdaq Helsinki, Oslo Børs, Nasdaq Copenhagen, "
+             "Nasdaq Stockholm, Victoria Falls Stock Exchange, Zimbabwe Stock Exchange, CBOE Europe (London), "
+             "Uganda Securities Exchange, Börse Stuttgart Digital Exchange, Rwanda Stock Exchange, "
+             "Prague Stock Exchange, Botswana Stock Exchange, Nigerian Stock Exchange, Nile Stock Exchange, "
+             "Malawi Stock Exchange, Ghana Stock Exchange, Nairobi Securities Exchange, Casablanca Stock Exchange, "
+             "Mauritius Stock Exchange, Tel Aviv Stock Exchange, Korea Exchange, KOSDAQ, Budapest Stock Exchange, "
+             "Warsaw Stock Exchange, Philippine Stock Exchange, Shanghai Stock Exchange, Indonesia Stock Exchange, "
+             "National Stock Exchange of India, Abu Dhabi Securities Exchange, Shenzhen Stock Exchange, "
+             "Australian Securities Exchange, Santiago Stock Exchange, Johannesburg Stock Exchange, "
+             "Pakistan Stock Exchange, Stock Exchange of Thailand, Colombian Stock Exchange, "
+             "Ho Chi Minh Stock Exchange, Bursa Malaysia, Bucharest Stock Exchange, Buenos Aires Stock Exchange, "
+             "B3 – Brasil Bolsa Balcão, Mexican Stock Exchange, Zagreb Stock Exchange, Taiwan Stock Exchange, "
+             "Costa Rica Stock Exchange, Lima Stock Exchange")
+
+
+S = """
+You will be given either a stock exchange code (e.g., XNAS) or a stock exchange name.  
+You will also be given a list containing valid full stock exchange names.  
+
+Your task is to:
+1. Identify the correct full stock exchange name that corresponds to the provided code or name.  
+2. Return only the matching name exactly as it appears in the list.  
+
+If no match exists, return "NA".
+Do not provide explanations, alternatives, or additional text.
+"""
+
 def chunked(iterable, size):
     for i in range(0, len(iterable), size):
         yield iterable[i:i + size]
 
-countries = "USA, UK, Canada, Germany, Luxembourg, Austria, France, Belgium, Switzerland, Spain, Portugal, Netherlands, Finland, Iceland, Ireland, Norway, Denmark, Sweden, Zimbabwe, Zambia, Uganda, Tanzania, Rwanda, Czech Republic, Botswana, Nigeria, Egypt, Malawi, Ghana, Kenya, Morocco, Mauritius, Israel, Korea, Hungary, Poland, Philippines, Chile, Indonesia, China, India, Greece, Australia, South Africa, Pakistan, Thailand, Sri Lanka, Vietnam, Malaysia, Romania, Brazil, Argentina, Mexico, Croatia, Taiwan, Peru, Turkey, Unknown, Hong Kong, Japan, Saudi Arabia, Russia"
-
 def create_kw_companies():
-    system_prompt = ("You will be given a stock exchange name or code. Your job is return the country that stock "
-                     f"exchange is in. You can choose fom this list: {countries}. Do not add any extra commentary, "
-                     f"abbreviations or punctuation")
-
     kw_joined = (
         supabase.table("kw_joined")
         .select("*")
@@ -25,7 +51,6 @@ def create_kw_companies():
     grouped = defaultdict(lambda: {
         "keywords": [],
         "exchange": None,
-        "country": None,
         "full_name": None,
         "yoy_sum": 0, "yoy_count": 0,
         "vol_sum": 0, "vol_count": 0,
@@ -38,8 +63,8 @@ def create_kw_companies():
             ticker = ti.get("ticker")
             if ticker is None:
                 continue
-            grouped[ticker]["exchange"] = ti.get("exchange")
-            grouped[ticker]["country"] = ti.get("country", ask_gpt(ti.get("exchange"), system_prompt))
+            grouped[ticker]["exchange"] = ask_gpt(query=f"exchange: {ti.get('exchange')}, list:{exchanges}",
+                                                  system_prompt=S)
             grouped[ticker]["full_name"] = ti.get("full_name")
             grouped[ticker]["source"] = "EODHD"
             grouped[ticker]["code"] = ti.get("code")
@@ -72,7 +97,6 @@ def create_kw_companies():
             "exchange": info["exchange"],
             "code": info["code"],
             "source": info["source"],
-            "country": info["country"],
             "full_name": info["full_name"],
             "keywords": info["keywords"],
             "avg_yoy": _avg_int(info["yoy_sum"], info["yoy_count"]),
@@ -95,8 +119,14 @@ def create_kw_companies():
         )
         need_desc = (not check.data) or (check.data[0].get("description") in (None, ""))
         if need_desc:
-            t["description"] = get_SERP_AI(f"Can you give me a description of what {t['full_name']} ({t['ticker']}) "
+            try:
+                t["description"] = get_SERP_AI(f"Can you give me a description of what {t['full_name']} ({t['ticker']}) "
                                            f"does?")
+            except Exception as e:
+                print(f"get_SERP_AI failed {e}")
+                t["description"] = None
+        else:
+            t["description"] = check.data[0].get("description")
 
         enriched_rows.append(t)
 

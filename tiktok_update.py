@@ -37,7 +37,7 @@ def tiktok_120day_trend():
                             "hashtag": data_120days['analytics']['hashtag_name'],
                             "trend_120days": trend_string_120days,
                             "views_120days": views_120days,
-                            "created_at": datetime.now(ZoneInfo("Australia/Sydney")).isoformat(),
+                            "updated_at": datetime.now(ZoneInfo("Australia/Sydney")).isoformat(),
                         },
                         on_conflict="hashtag",
                     )
@@ -109,7 +109,7 @@ def tiktok_3yr_trend():
                             "categories": category,
                             "related_hashtag": hashtags_string,
                             "trend_projected": proj_trend,
-                            "created_at": datetime.now(ZoneInfo("Australia/Sydney")).isoformat(),
+                            "updated_at": datetime.now(ZoneInfo("Australia/Sydney")).isoformat(),
                         },
                         on_conflict="hashtag",
                     )
